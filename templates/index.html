@@ -1,0 +1,2250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram Reels maker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+</head>
+<body>
+    <div class="container">
+
+        <header class="main-header">
+            <h1>Instagram Reels maker</h1>
+        </header>
+
+        <main>
+            <div class="control-panel">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="form-section">
+                        <h2>1. Upload Video</h2>
+                        <div class="file-input-wrapper">
+                            <input type="file" name="video" id="video-upload" accept="video/*" required>
+                            <label for="video-upload" class="file-input-label">Select Video File</label>
+                            <p id="file-name">No file selected</p>
+                        </div>
+                    </div>
+
+                    <!-- Frame-by-Frame Manipulation Section -->
+                    <div class="form-section" id="frame-manipulation-section" style="display:none;">
+                        <h2>2. Video Timeline Editor</h2>
+                        <div class="video-editor">
+                            <!-- Video Preview -->
+                            <div class="video-preview-container">
+                                <video id="frame-video-preview" controls style="max-width:100%; height:auto;"></video>
+                            </div>
+                            
+                            <!-- Timeline Controls -->
+                            <div class="timeline-controls">
+                                <div class="time-display">
+                                    <span id="current-time-display">00:00.00</span> / <span id="total-time-display">00:00.00</span>
+                                </div>
+                                <div class="playback-controls">
+                                    <button type="button" class="btn btn-sm" id="play-pause-btn">⏸️</button>
+                                    <button type="button" class="btn btn-sm" id="step-back-btn">⏮️</button>
+                                    <button type="button" class="btn btn-sm" id="step-forward-btn">⏭️</button>
+                                </div>
+                            </div>
+                            
+                            <!-- Timeline Strip -->
+                            <div class="timeline-container">
+                                <canvas id="timeline-canvas" width="800" height="80" style="border:1px solid #ccc; cursor:pointer;"></canvas>
+                                <div class="timeline-labels">
+                                    <span class="time-label">0s</span>
+                                    <span class="time-label" style="float:right;">End</span>
+                                </div>
+                                <!-- Trim Handles -->
+                                <div class="trim-handles">
+                                    <div class="trim-handle" id="trim-in-handle" style="left: 0%;">
+                                        <div class="handle-grip"></div>
+                                        <div class="handle-label">IN</div>
+                                    </div>
+                                    <div class="trim-handle" id="trim-out-handle" style="left: 100%;">
+                                        <div class="handle-grip"></div>
+                                        <div class="handle-label">OUT</div>
+                                    </div>
+                                    <div class="trim-range" id="trim-range"></div>
+                                    <!-- Playhead Handle -->
+                                    <div class="playhead-handle" id="playhead-handle" style="left: 0%;"></div>
+                                </div>
+                                <div class="trim-info">
+                                    <span>Selected: <span id="trim-start-time">00:00.00</span> - <span id="trim-end-time">00:00.00</span></span>
+                                    <span>Duration: <span id="trim-duration">00:00.00</span></span>
+                                </div>
+                            </div>
+                            
+                            <!-- Frame Export -->
+                            <div class="frame-export">
+                                <button type="button" class="btn btn-primary" id="export-frame-btn">Export Current Frame</button>
+                                <a id="download-frame-link" style="display:none; margin-left:1em;" class="btn btn-secondary" download>Download Frame</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Renumber subsequent sections -->
+                    <div class="form-section">
+                        <h2>4. Set Time Range</h2>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="start_hours">Start Time</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="start_hours" min="0" value="{{ form_data.start_hours | default(0) }}" placeholder="Hr">
+                                    <input type="number" class="form-control" name="start_minutes" min="0" max="59" value="{{ form_data.start_minutes | default(0) }}" placeholder="Min">
+                                    <input type="number" class="form-control" name="start_seconds" min="0" max="59" value="{{ form_data.start_seconds | default(0) }}" placeholder="Sec">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="end_hours">End Time</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="end_hours" min="0" value="{{ form_data.end_hours | default('') }}" placeholder="Hr">
+                                    <input type="number" class="form-control" name="end_minutes" min="0" max="59" value="{{ form_data.end_minutes | default('') }}" placeholder="Min">
+                                    <input type="number" class="form-control" name="end_seconds" min="0" max="59" value="{{ form_data.end_seconds | default('') }}" placeholder="Sec">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h2>5. Configure Output</h2>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="aspect_ratio">Aspect Ratio</label>
+                                <select class="form-select" id="aspect_ratio" name="aspect_ratio">
+                                    <option value="original" {% if form_data.aspect_ratio == 'original' %}selected{% endif %}>Original</option>
+                                    <option value="9:16" {% if form_data.aspect_ratio == '9:16' %}selected{% endif %}>9:16 (Portrait)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="resolution">Resolution</label>
+                                <select class="form-select" id="resolution" name="resolution">
+                                    <option value="original" {% if form_data.resolution == 'original' %}selected{% endif %}>Original Quality</option>
+                                    <option value="720" {% if form_data.resolution == '720' %}selected{% endif %}>720p (HD)</option>
+                                    <option value="1080" {% if form_data.resolution == '1080' %}selected{% endif %}>1080p (Full HD)</option>
+                                    <option value="2160" {% if form_data.resolution == '2160' %}selected{% endif %}>2160p (4K)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="chunk_length">Split Clip Length (s)</label>
+                                <select class="form-select" id="chunk_length" name="chunk_length">
+                                    <option value="15" {% if form_data.chunk_length == '15' %}selected{% endif %}>15s</option>
+                                    <option value="30" {% if form_data.chunk_length == '30' %}selected{% endif %}>30s</option>
+                                    <option value="60" {% if form_data.chunk_length == '60' %}selected{% endif %}>60s</option>
+                                    <option value="120" {% if form_data.chunk_length == '120' %}selected{% endif %}>120s</option>
+                                    <option value="180" {% if form_data.chunk_length == '180' %}selected{% endif %}>180s (3 min)</option>
+                                    <option value="300" {% if form_data.chunk_length == '300' %}selected{% endif %}>300s (5 min)</option>
+                                    <option value="600" {% if form_data.chunk_length == '600' %}selected{% endif %}>600s (10 min)</option>
+                                    <option value="1800" {% if form_data.chunk_length == '1800' %}selected{% endif %}>1800s (30 min)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="storyboard_chunk_length">Storyboard Clip Length (s)</label>
+                                <input type="number" class="form-control" name="storyboard_chunk_length" min="1" value="{{ form_data.storyboard_chunk_length | default(10) }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h2>6. Audio</h2>
+                        <div class="form-group">
+                            <label for="audio">Replace Audio</label>
+                            <input type="file" class="form-control" name="audio" id="audio-upload" accept="audio/*">
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h2>7. Speed Control</h2>
+                        <div class="form-group">
+                            <label for="speed_factor">Video Speed</label>
+                            <select class="form-select" id="speed_factor" name="speed_factor">
+                                <option value="0.25">0.25x (4x Slower)</option>
+                                <option value="0.5">0.5x (2x Slower)</option>
+                                <option value="0.75">0.75x (1.33x Slower)</option>
+                                <option value="1.0" selected>1.0x (Normal Speed)</option>
+                                <option value="1.25">1.25x (1.25x Faster)</option>
+                                <option value="1.5">1.5x (1.5x Faster)</option>
+                                <option value="2.0">2.0x (2x Faster)</option>
+                                <option value="3.0">3.0x (3x Faster)</option>
+                                <option value="4.0">4.0x (4x Faster)</option>
+                            </select>
+                            <small class="form-text text-muted">Select the speed multiplier for your video. Higher values make the video faster, lower values make it slower.</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Color Grading Options -->
+                    <div class="form-section">
+                        <h2>8. Cinematic Color Grading</h2>
+                        <div class="form-group">
+                            <label for="color_grade" style="font-weight:600; margin-bottom:10px; display:block;">Select Color Grade:</label>
+                            <select class="form-select" id="color_grade" name="color_grade" style="width:100%; padding:12px; font-size:14px;">
+                                <option value="none">None (Original)</option>
+                                <option value="teal_orange">Teal & Orange</option>
+                                <option value="blockbuster">Blockbuster Blue</option>
+                                <option value="warm_film">Warm Film</option>
+                                <option value="bw">Black & White</option>
+                                <option value="vintage">Vintage</option>
+                                <option value="cyberpunk">Cyberpunk</option>
+                                <option value="noir">Film Noir</option>
+                                <option value="sunset">Sunset</option>
+                                <option value="cool_blue">Cool Blue</option>
+                                <option value="warm_gold">Warm Gold</option>
+                                <option value="high_contrast">High Contrast</option>
+                                <option value="sepia">Sepia</option>
+                                <option value="neon">Neon</option>
+                                <option value="cinematic">Cinematic</option>
+                                <option value="dramatic">Dramatic</option>
+                                <option value="pastel">Pastel</option>
+                                <option value="monochrome">Monochrome</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h2>9. Process</h2>
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" type="submit" name="action" value="split">Split Video</button>
+                            <button class="btn btn-secondary" type="submit" name="action" value="storyboard">Create Storyboard</button>
+                            <button class="btn" type="submit" name="action" value="change_audio" style="background-color: #9b59b6; color: white;">Change Audio</button>
+                            <button class="btn" type="submit" name="action" value="change_speed" style="background-color: #e67e22; color: white;">Change Speed</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            {% if clips or storyboard_clips %}
+            <div class="results-container">
+                <h2>Output</h2>
+                <div class="reels-grid">
+                    {% if clips %}
+                        {% for clip in clips %}
+                        <div class="reel-card">
+                            <div class="video-safezone-wrapper" style="position:relative;">
+                                <video controls preload="metadata"
+                                    {% if form_data.aspect_ratio == '9:16' %}style="aspect-ratio:9/16;width:100%;max-width:320px;"{% endif %}>
+                                    <source src="{{ url_for('download_clip', filename=clip) }}#t=0.5" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                                {% if form_data.aspect_ratio == '9:16' %}
+                                <!-- Safe zone overlay for 9:16 -->
+                                <div style="position:absolute;top:10%;left:5%;width:90%;height:80%;border:2px dashed #00ff99;box-sizing:border-box;pointer-events:none;z-index:2;opacity:0.5;"></div>
+                                <div style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;"></div>
+                                {% endif %}
+                            </div>
+                            <div class="reel-info">
+                                <p>{{ clip }}</p>
+                                <a href="{{ url_for('download_clip', filename=clip) }}" class="btn btn-primary download-btn" download>Download</a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    {% if storyboard_clips %}
+                        {% for clip in storyboard_clips %}
+                        <div class="reel-card">
+                            <div class="video-safezone-wrapper" style="position:relative;">
+                                <video controls preload="metadata"
+                                    {% if form_data.aspect_ratio == '9:16' %}style="aspect-ratio:9/16;width:100%;max-width:320px;"{% endif %}>
+                                    <source src="{{ url_for('download_storyboard_clip', filename=clip) }}#t=0.5" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                                {% if form_data.aspect_ratio == '9:16' %}
+                                <!-- Safe zone overlay for 9:16 -->
+                                <div style="position:absolute;top:10%;left:5%;width:90%;height:80%;border:2px dashed #00ff99;box-sizing:border-box;pointer-events:none;z-index:2;opacity:0.5;"></div>
+                                <div style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;"></div>
+                                {% endif %}
+                            </div>
+                            <div class="reel-info">
+                                <p>{{ clip }}</p>
+                                <a href="{{ url_for('download_storyboard_clip', filename=clip) }}" class="btn btn-secondary download-btn" download>Download</a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                {% if thumbnail %}
+                <div class="thumbnail-section" style="margin-top:2em;text-align:center;">
+                    <h3>Suggested Thumbnail</h3>
+                    <img src="{{ url_for('download_thumbnail', filename=thumbnail) }}" alt="Thumbnail" style="max-width:200px;border:2px solid #00ff99;border-radius:8px;">
+                    <p style="font-size:0.9em;color:#888;">You can use this as your Instagram cover image.</p>
+                    <a href="{{ url_for('download_thumbnail', filename=thumbnail) }}" class="btn btn-primary" download>Download Thumbnail</a>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <div class="form-section merge-polished-section premium-gradient-bg">
+        <h2 style="color:#fff;"><span style="vertical-align:middle;">🧩</span> Merge Multiple Clips</h2>
+        <form id="merge-form" method="POST" action="/merge" enctype="multipart/form-data">
+            <label for="merge-clips" class="merge-label" style="color:#fff;">Select Clips to Merge (drag to reorder):</label>
+            <input type="file" id="merge-clips" name="clips" accept="video/*" multiple required style="margin-bottom:1em;background:#fff;color:#333;border-radius:6px;padding:0.5em 1em;">
+            <div id="merge-timeline-preview" class="timeline-preview"></div>
+            <input type="hidden" name="clip_order" id="clip-order-input">
+            <button type="submit" class="btn btn-primary merge-btn premium-btn" id="merge-btn">Merge Clips</button>
+        </form>
+        <div id="merge-progress" class="merge-progress" style="display:none;">
+            <div class="spinner"></div>
+            <div class="merge-progress-text">Merging clips… Please wait.</div>
+        </div>
+        {% if merged_clip %}
+            <div class="merge-result">
+                <h3 style="color:#fff;">Merged Video Ready!</h3>
+                <video controls style="max-width:100%;border-radius:10px;box-shadow:0 2px 12px #0002;" poster="/static/merged_poster.png">
+                    <source src="{{ url_for('download_clip', filename=merged_clip) }}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <a href="{{ url_for('download_clip', filename=merged_clip) }}" class="btn btn-success" download style="margin-top:1em;background:#2575fc;color:#fff;font-weight:600;border-radius:8px;box-shadow:none;transition:none;filter:none;">Download Merged Video</a>
+            </div>
+        {% elif merge_error %}
+            <div class="merge-error" style="color:#fff;background:#e74c3c;padding:0.7em 1em;border-radius:8px;">{{ merge_error }}</div>
+        {% endif %}
+    </div>
+
+    <!-- Audio/Video Separation Section -->
+    <div class="form-section audio-separation-section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; box-shadow: 0 8px 32px #0003; padding: 2.5em 2em 2em 2em; margin: 2.5em auto 2em auto; max-width: 750px; position: relative; overflow: visible;">
+        <h2 style="color:#fff; margin-bottom: 1.5em;"><span style="vertical-align:middle;">🎵</span> Separate Audio & Video</h2>
+        <form id="separation-form" method="POST" action="/separate" enctype="multipart/form-data">
+            <div class="separation-upload-area" style="text-align: center; margin-bottom: 2em;">
+                <div class="upload-options" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em; margin-bottom: 1.5em;">
+                    <div class="upload-option" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2);">
+                        <label for="separation-video" class="separation-label" style="color:#fff; font-weight: 600; font-size: 1.15em; letter-spacing:0.01em; display: block; margin-bottom: 1em;">🎬 Upload Video</label>
+                        <input type="file" id="separation-video" name="video" accept="video/*" style="background:#fff;color:#333;border-radius:6px;padding:0.8em 1.5em;border:none;font-size:1em;cursor:pointer;box-shadow:0 4px 12px #0002; width:100%;">
+                        <div id="separation-file-info" style="margin-top: 1em; color: #fff; font-size: 0.9em;"></div>
+                    </div>
+                    <div class="upload-option" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2);">
+                        <label for="separation-audio" class="separation-label" style="color:#fff; font-weight: 600; font-size: 1.15em; letter-spacing:0.01em; display: block; margin-bottom: 1em;">🎵 Upload Audio</label>
+                        <input type="file" id="separation-audio" name="audio" accept="audio/*" style="background:#fff;color:#333;border-radius:6px;padding:0.8em 1.5em;border:none;font-size:1em;cursor:pointer;box-shadow:0 4px 12px #0002; width:100%;">
+                        <div id="separation-audio-file-info" style="margin-top: 1em; color: #fff; font-size: 0.9em;"></div>
+                    </div>
+                </div>
+                <div class="upload-note" style="color:#fff; font-size: 0.9em; opacity: 0.8; font-style: italic;">
+                    💡 Upload either a video file to separate audio/video, or an audio file to create clips
+                </div>
+            </div>
+            
+            <div class="separation-options" style="margin-bottom: 2em;">
+                <h3 style="color:#fff; margin-bottom: 1em;">Output Options:</h3>
+                <div class="options-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em;">
+                    <div class="option-card" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2);">
+                        <h4 style="color:#fff; margin-bottom: 0.5em;">🎬 Video Output</h4>
+                        <select name="video_format" style="width:100%; padding:0.5em; border-radius:6px; border:none; background:#fff; color:#333;">
+                            <option value="mp4">MP4 (H.264)</option>
+                            <option value="avi">AVI</option>
+                            <option value="mov">MOV</option>
+                            <option value="mkv">MKV</option>
+                        </select>
+                    </div>
+                    <div class="option-card" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2);">
+                        <h4 style="color:#fff; margin-bottom: 0.5em;">🎵 Audio Output</h4>
+                        <select name="audio_format" style="width:100%; padding:0.5em; border-radius:6px; border:none; background:#fff; color:#333;">
+                            <option value="mp3">MP3</option>
+                            <option value="wav">WAV</option>
+                            <option value="aac">AAC</option>
+                            <option value="flac">FLAC</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audio Timeline Editor -->
+            <div class="audio-timeline-section" id="audio-timeline-section" style="display:none; margin-bottom: 2em;">
+                <h3 style="color:#fff; margin-bottom: 1em;">🎵 Audio Timeline Editor</h3>
+                <div class="audio-editor" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2);">
+                    <!-- Audio Preview -->
+                    <div class="audio-preview-container" style="margin-bottom: 1.5em;">
+                        <audio id="audio-preview" controls style="width:100%; height:50px; border-radius:8px; background:#fff;">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                    
+                    <!-- Timeline Controls -->
+                    <div class="audio-timeline-controls" style="margin-bottom: 1.5em;">
+                        <div class="time-display" style="text-align:center; color:#fff; font-weight:600; margin-bottom:1em;">
+                            <span id="audio-current-time">00:00.00</span> / <span id="audio-total-time">00:00.00</span>
+                        </div>
+                        <div class="playback-controls" style="text-align:center;">
+                            <button type="button" class="btn btn-sm" id="audio-play-pause-btn" style="background:#667eea; color:#fff; border:none; padding:0.5em 1em; border-radius:6px; margin:0 0.5em;">⏸️</button>
+                            <button type="button" class="btn btn-sm" id="audio-step-back-btn" style="background:#667eea; color:#fff; border:none; padding:0.5em 1em; border-radius:6px; margin:0 0.5em;">⏮️</button>
+                            <button type="button" class="btn btn-sm" id="audio-step-forward-btn" style="background:#667eea; color:#fff; border:none; padding:0.5em 1em; border-radius:6px; margin:0 0.5em;">⏭️</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Audio Timeline Strip -->
+                    <div class="audio-timeline-container" style="margin-bottom: 1.5em;">
+                        <div class="timeline-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5em;">
+                            <span style="color:#fff; font-size:0.9em; font-weight:600;">Timeline</span>
+                            <span style="color:#667eea; font-size:0.8em; background:rgba(102,126,234,0.2); padding:0.2em 0.5em; border-radius:4px;">🔁 Loops in selected region</span>
+                        </div>
+                        <canvas id="audio-timeline-canvas" width="800" height="60" style="border:2px solid #667eea; border-radius:8px; cursor:pointer; background:#2a2a2a; width:100%; max-width:800px; position:relative;"></canvas>
+                        <!-- Audio Trim Handles -->
+                        <div class="audio-trim-handles" style="position:relative; margin-top:1em;">
+                            <div class="audio-trim-handle" id="audio-trim-in-handle" style="position:absolute; top:-10px; width:24px; height:40px; background:linear-gradient(90deg,#667eea 0%,#764ba2 100%); border-radius:4px; cursor:ew-resize; z-index:10; left:0%; box-shadow:0 2px 8px rgba(102,126,234,0.4);">
+                                <div class="handle-grip" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:bold; font-size:0.7em;">IN</div>
+                            </div>
+                            <div class="audio-trim-handle" id="audio-trim-out-handle" style="position:absolute; top:-10px; width:24px; height:40px; background:linear-gradient(90deg,#764ba2 0%,#667eea 100%); border-radius:4px; cursor:ew-resize; z-index:10; left:100%; box-shadow:0 2px 8px rgba(118,75,162,0.4);">
+                                <div class="handle-grip" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:bold; font-size:0.7em;">OUT</div>
+                            </div>
+                            <div class="audio-trim-range" id="audio-trim-range" style="position:absolute; top:0; height:20px; background:rgba(102,126,234,0.3); border-radius:4px; left:0%; width:100%;"></div>
+                            <!-- Audio Playhead Handle with Time Display -->
+                            <div class="audio-playhead-container" id="audio-playhead-container" style="position:absolute; top:-25px; z-index:20; left:0%;">
+                                <div class="playhead-time-display" id="playhead-time-display" style="background:#ff6b6b; color:#fff; padding:0.2em 0.5em; border-radius:4px; font-size:0.8em; font-weight:bold; text-align:center; white-space:nowrap; box-shadow:0 2px 8px rgba(255,107,107,0.4); margin-bottom:0.2em;">00:00.00</div>
+                                <div class="audio-playhead-handle" id="audio-playhead-handle" style="width:6px; height:35px; background:linear-gradient(to bottom,#ff6b6b 0%,#ff5252 100%); border:2px solid #fff; border-radius:3px; cursor:ns-resize; box-shadow:0 2px 8px rgba(255,107,107,0.6); position:relative;">
+                                    <div class="playhead-grip" style="position:absolute; top:-8px; left:-2px; width:10px; height:10px; background:#ff6b6b; border:2px solid #fff; border-radius:50%; cursor:ns-resize;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Moved Timeline Labels -->
+                        <div class="audio-timeline-labels" style="display:flex; justify-content:space-between; color:#fff; font-size:0.9em; margin-top:1.5em;">
+                            <span class="time-label">0s</span>
+                            <span class="time-label">End</span>
+                        </div>
+                        <div class="audio-trim-info" style="text-align:center; color:#fff; font-size:0.9em; margin-top:1em;">
+                            <span>Selected: <span id="audio-trim-start-time">00:00.00</span> - <span id="audio-trim-end-time">00:00.00</span></span>
+                            <span style="margin-left:2em;">Duration: <span id="audio-trim-duration">00:00.00</span></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Audio Split Options -->
+                    <div class="audio-split-options" style="margin-top: 1.5em;">
+                        <div class="split-toggle" style="text-align:center; margin-bottom:1em;">
+                            <label style="color:#fff; font-weight:600; cursor:pointer;">
+                                <input type="checkbox" id="enable-audio-split" name="enable_audio_split" style="margin-right:0.5em;">
+                                Enable Audio Clip Extraction
+                            </label>
+                        </div>
+                        <div id="audio-split-settings" style="display:none;">
+                            <div class="split-settings-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:1em;">
+                                <div class="split-setting">
+                                    <label style="color:#fff; font-size:0.9em;">Start Time:</label>
+                                    <input type="text" id="audio-start-time" name="audio_start_time" value="00:00.00" readonly style="width:100%; padding:0.5em; border-radius:6px; border:none; background:#fff; color:#333; text-align:center;">
+                                </div>
+                                <div class="split-setting">
+                                    <label style="color:#fff; font-size:0.9em;">End Time:</label>
+                                    <input type="text" id="audio-end-time" name="audio_end_time" value="00:00.00" readonly style="width:100%; padding:0.5em; border-radius:6px; border:none; background:#fff; color:#333; text-align:center;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="separation-actions" style="text-align: center;">
+                <button type="submit" class="btn btn-primary separation-btn" id="separation-btn" style="background: linear-gradient(90deg,#667eea 0%,#764ba2 100%); color: #fff !important; border: none; font-weight: 700; font-size: 1.13em; border-radius: 10px; box-shadow: 0 2px 12px #667eea33; padding: 0.7em 2.2em; transition: background 0.2s, box-shadow 0.2s, transform 0.13s;">Separate Audio & Video</button>
+            </div>
+        </form>
+        
+        <div id="separation-progress" class="separation-progress" style="display:none; flex-direction: column; align-items: center; justify-content: center; margin: 2em 0 1em 0; min-height: 120px;">
+            <div class="spinner" style="border: 6px solid #f3f3f3; border-top: 6px solid #667eea; border-radius: 50%; width: 48px; height: 48px; animation: spin 1s linear infinite; margin-bottom: 1em;"></div>
+            <div class="separation-progress-text" style="color: #fff; font-size: 1.15em; font-weight: 600; letter-spacing: 0.01em; text-shadow: 0 2px 8px #0003;">Separating audio and video… Please wait.</div>
+        </div>
+        
+        {% if separated_files %}
+            <div class="separation-result" style="margin-top: 2em;">
+                <h3 style="color:#fff; text-align: center; margin-bottom: 1.5em;">Separation Complete!</h3>
+                <div class="separation-downloads" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em;">
+                    {% if separated_files.video %}
+                    <div class="download-card" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; text-align: center; border: 2px solid rgba(255,255,255,0.2);">
+                        <h4 style="color:#fff; margin-bottom: 1em;">🎬 Video File</h4>
+                        <p style="color:#fff; font-size: 0.9em; margin-bottom: 1em;">{{ separated_files.video }}</p>
+                        <a href="{{ url_for('download_separated', filename=separated_files.video) }}" class="btn btn-success" download style="background:#667eea;color:#fff;font-weight:600;border-radius:8px;box-shadow:none;transition:none;filter:none;">Download Video</a>
+                    </div>
+                    {% endif %}
+                    {% if separated_files.audio %}
+                    <div class="download-card" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; text-align: center; border: 2px solid rgba(255,255,255,0.2);">
+                        <h4 style="color:#fff; margin-bottom: 1em;">🎵 Audio File</h4>
+                        <p style="color:#fff; font-size: 0.9em; margin-bottom: 1em;">{{ separated_files.audio }}</p>
+                        <a href="{{ url_for('download_separated', filename=separated_files.audio) }}" class="btn btn-success" download style="background:#667eea;color:#fff;font-weight:600;border-radius:8px;box-shadow:none;transition:none;filter:none;">Download Audio</a>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                {% if separated_files.audio_clip %}
+                <div class="audio-clip-section" style="margin-top: 2em;">
+                    <h3 style="color:#fff; text-align: center; margin-bottom: 1.5em;">🎵 Audio Clip Extracted!</h3>
+                    <div class="audio-clip-download" style="display: flex; justify-content: center;">
+                        <div class="download-card" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; text-align: center; border: 2px solid rgba(255,255,255,0.2); max-width: 400px;">
+                            <h4 style="color:#fff; margin-bottom: 1em;">🎵 Audio Clip</h4>
+                            <p style="color:#fff; font-size: 0.9em; margin-bottom: 1em;">{{ separated_files.audio_clip }}</p>
+                            <a href="{{ url_for('download_separated', filename=separated_files.audio_clip) }}" class="btn btn-success" download style="background:#667eea;color:#fff;font-weight:600;border-radius:8px;box-shadow:none;transition:none;filter:none;">Download Audio Clip</a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        {% elif separation_error %}
+            <div class="separation-error" style="color:#fff;background:#e74c3c;padding:0.7em 1em;border-radius:8px;margin-top:1em;">{{ separation_error }}</div>
+        {% endif %}
+    </div>
+
+    <!-- Image Collage Section -->
+    <div class="form-section collage-section" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); border-radius: 20px; box-shadow: 0 8px 32px #0003; padding: 2.5em 2em 2em 2em; margin: 2.5em auto 2em auto; max-width: 750px; position: relative; overflow: visible;">
+        <h2 style="color:#fff; margin-bottom: 1.5em;"><span style="vertical-align:middle;">🖼️</span> Create Image Collage</h2>
+        <form id="collage-form" method="POST" action="/" enctype="multipart/form-data">
+            <div class="collage-upload-area" style="text-align: center; margin-bottom: 2em;">
+                <div class="upload-instructions" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2); margin-bottom: 1.5em;">
+                    <h3 style="color:#fff; margin-bottom: 1em;">📸 Upload Images</h3>
+                    <input type="file" id="collage-images" name="collage_images" accept="image/*" multiple required style="background:#fff;color:#333;border-radius:6px;padding:0.8em 1.5em;border:none;font-size:1em;cursor:pointer;box-shadow:0 4px 12px #0002; width:100%;">
+                    <p style="color:#fff; font-size: 0.9em; margin-top: 1em; opacity: 0.8;">Select 2-9 images to create your collage</p>
+                </div>
+            </div>
+            
+            <div class="collage-options" style="margin-bottom: 2em;">
+                <h3 style="color:#fff; margin-bottom: 1em;">🎨 Collage Options</h3>
+                <div class="options-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em;">
+                    <div class="option-card" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2);">
+                        <h4 style="color:#fff; margin-bottom: 0.5em;">📐 Layout</h4>
+                        <select name="collage_layout" style="width:100%; padding:0.5em; border-radius:6px; border:none; background:#fff; color:#333;">
+                            <option value="grid_2x2">Grid 2x2 (4 images)</option>
+                            <option value="horizontal">Horizontal (side by side)</option>
+                            <option value="vertical">Vertical (stacked)</option>
+                            <option value="triptych">Triptych (3 images)</option>
+                        </select>
+                    </div>
+                    <div class="option-card" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2);">
+                        <h4 style="color:#fff; margin-bottom: 0.5em;">📏 Size</h4>
+                        <select name="collage_aspect_ratio" style="width:100%; padding:0.5em; border-radius:6px; border:none; background:#fff; color:#333;">
+                            <option value="1:1">Square (Instagram Post)</option>
+                            <option value="4:5">Portrait (Instagram Story)</option>
+                            <option value="16:9">Landscape (YouTube Thumbnail)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="advanced-options" style="margin-top: 1.5em;">
+                    <div class="option-card" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2);">
+                        <h4 style="color:#fff; margin-bottom: 0.5em;">🎨 Background</h4>
+                        <select name="background_color" style="width:100%; padding:0.5em; border-radius:6px; border:none; background:#fff; color:#333;">
+                            <option value="#ffffff">White</option>
+                            <option value="#000000">Black</option>
+                            <option value="#f0f0f0">Light Gray</option>
+                            <option value="#e8f4fd">Light Blue</option>
+                            <option value="#fff5f5">Light Pink</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="collage-actions" style="text-align: center;">
+                <button type="submit" class="btn btn-primary collage-btn" name="action" value="create_collage" style="background: linear-gradient(90deg,#ff6b6b 0%,#ee5a24 100%); color: #fff !important; border: none; font-weight: 700; font-size: 1.13em; border-radius: 10px; box-shadow: 0 2px 12px #ff6b6b33; padding: 0.7em 2.2em; transition: background 0.2s, box-shadow 0.2s, transform 0.13s;">Create Collage</button>
+                <a href="/editor" class="btn btn-secondary" style="background: rgba(255,255,255,0.2); color: #fff !important; border: none; font-weight: 600; font-size: 1em; border-radius: 10px; padding: 0.7em 2.2em; margin-left: 1em; text-decoration: none; transition: background 0.2s;">🎨 Advanced Editor</a>
+            </div>
+        </form>
+        
+        <div id="collage-progress" class="collage-progress" style="display:none; flex-direction: column; align-items: center; justify-content: center; margin: 2em 0 1em 0; min-height: 120px;">
+            <div class="spinner" style="border: 6px solid #f3f3f3; border-top: 6px solid #ff6b6b; border-radius: 50%; width: 48px; height: 48px; animation: spin 1s linear infinite; margin-bottom: 1em;"></div>
+            <div class="collage-progress-text" style="color: #fff; font-size: 1.15em; font-weight: 600; letter-spacing: 0.01em; text-shadow: 0 2px 8px #0003;">Creating your collage… Please wait.</div>
+        </div>
+        
+        {% if collage_result %}
+            <div class="collage-result" style="margin-top: 2em;">
+                <h3 style="color:#fff; text-align: center; margin-bottom: 1.5em;">🎉 Collage Created!</h3>
+                <div class="collage-download" style="display: flex; justify-content: center;">
+                    <div class="download-card" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; text-align: center; border: 2px solid rgba(255,255,255,0.2); max-width: 500px;">
+                        <h4 style="color:#fff; margin-bottom: 1em;">🖼️ Your Collage</h4>
+                        <img src="{{ url_for('download_clip', filename=collage_result) }}" alt="Collage" style="max-width:100%; border-radius:8px; box-shadow:0 4px 16px #0003; margin-bottom:1em;">
+                        <p style="color:#fff; font-size: 0.9em; margin-bottom: 1em;">{{ collage_result }}</p>
+                        <a href="{{ url_for('download_clip', filename=collage_result) }}" class="btn btn-success" download style="background:#ff6b6b;color:#fff;font-weight:600;border-radius:8px;box-shadow:none;transition:none;filter:none;">Download Collage</a>
+                    </div>
+                </div>
+            </div>
+        {% elif collage_error %}
+            <div class="collage-error" style="color:#fff;background:#e74c3c;padding:0.7em 1em;border-radius:8px;margin-top:1em;">{{ collage_error }}</div>
+        {% endif %}
+    </div>
+
+    <!-- Advanced Drag & Drop Editor Section -->
+    <div class="form-section editor-section" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); border-radius: 20px; box-shadow: 0 8px 32px #0003; padding: 2.5em 2em 2em 2em; margin: 2.5em auto 2em auto; max-width: 1200px; position: relative; overflow: visible;">
+        <h2 style="color:#fff; margin-bottom: 1.5em;"><span style="vertical-align:middle;">🎨</span> Advanced Drag & Drop Editor</h2>
+        
+        <div class="editor-upload-area" style="text-align: center; margin-bottom: 2em;">
+            <div class="upload-instructions" style="background: rgba(255,255,255,0.1); padding: 1.5em; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2); margin-bottom: 1.5em;">
+                <h3 style="color:#fff; margin-bottom: 1em;">📸 Upload Images for Editor</h3>
+                <form method="POST" enctype="multipart/form-data" id="editorForm">
+                    <input type="file" name="editor_images" accept="image/*" multiple required style="background:#fff;color:#333;border-radius:6px;padding:0.8em 1.5em;border:none;font-size:1em;cursor:pointer;box-shadow:0 4px 12px #0002; width:100%;">
+                    <p style="color:#fff; font-size: 0.9em; margin-top: 1em; opacity: 0.8;">Select images to add to the drag & drop editor</p>
+                    <button type="submit" name="action" value="editor_upload" class="btn btn-primary" style="background: linear-gradient(90deg, #4CAF50 0%, #45a049 100%); color: #fff !important; border: none; font-weight: 700; font-size: 1.13em; border-radius: 10px; box-shadow: 0 2px 12px #4CAF5033; padding: 0.7em 2.2em; margin-top: 1em; transition: background 0.2s, box-shadow 0.2s, transform 0.13s;">Upload Images</button>
+                </form>
+            </div>
+        </div>
+        
+        {% if editor_images %}
+        <div class="editor-container" style="display: flex; gap: 20px; margin-top: 20px;">
+            <div class="image-panel" style="flex: 1; background: rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 20px; max-height: 600px; overflow-y: auto;">
+                <h3 style="color:#fff; margin-bottom: 15px;">🖼️ Available Images</h3>
+                <p style="color: #fff; margin-bottom: 15px; opacity: 0.8;">Drag images to the canvas</p>
+                {% for image in editor_images %}
+                <div class="image-item" draggable="true" data-src="{{ url_for('serve_image', filename=image.filename) }}" style="display: inline-block; margin: 10px; cursor: grab; border: 2px solid transparent; border-radius: 8px; transition: border-color 0.3s;">
+                    <img src="{{ url_for('serve_image', filename=image.filename) }}" alt="Image" style="width: 100px; height: 100px; object-fit: cover; border-radius: 6px;">
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="canvas-panel" style="flex: 2; background: rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 20px; text-align: center;">
+                <h3 style="color:#fff; margin-bottom: 15px;">🎨 Canvas</h3>
+                <div class="canvas-container" style="position: relative; display: inline-block;">
+                    <canvas id="canvas" width="1080" height="1920" style="border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 10px; background: #000000; max-width: 100%; height: auto; cursor: crosshair;"></canvas>
+                    <div id="resizeHandles" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></div>
+                </div>
+                <div class="canvas-info" style="color: white; margin-top: 10px; font-size: 14px; opacity: 0.8;">
+                    Canvas size: 1080x1920 (Instagram Reels format)
+                </div>
+                <div class="controls" style="margin-top: 20px; text-align: center;">
+                    <button class="btn btn-secondary" onclick="clearCanvas()" style="background: #6c757d; color: white; padding: 12px 24px; margin: 0 10px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">Clear Canvas</button>
+                    <button class="btn btn-primary" onclick="saveCollage()" style="background: linear-gradient(90deg, #4CAF50 0%, #45a049 100%); color: white; padding: 12px 24px; margin: 0 10px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">Save Collage</button>
+                    <button class="btn btn-secondary" onclick="deleteSelected()" style="background: #6c757d; color: white; padding: 12px 24px; margin: 0 10px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">Delete Selected</button>
+                    <button class="btn btn-secondary" onclick="bringToFront()" style="background: #6c757d; color: white; padding: 12px 24px; margin: 0 10px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">Bring to Front</button>
+                    <button class="btn btn-secondary" onclick="sendToBack()" style="background: #6c757d; color: white; padding: 12px 24px; margin: 0 10px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">Send to Back</button>
+                </div>
+                <div style="color: white; margin-top: 10px; font-size: 12px; opacity: 0.8;">
+                    <p>💡 Tips:</p>
+                    <ul style="text-align: left; margin: 10px 0;">
+                        <li>Click on an image to select it (red border appears)</li>
+                        <li>Drag the red circular handles to resize from corners</li>
+                        <li>Drag anywhere on the image to move it</li>
+                        <li>Press Delete to remove selected image</li>
+                        <li>Use Bring to Front/Send to Back to layer images</li>
+                        <li>Images automatically stay within canvas bounds</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <form id="saveForm" method="POST" style="display: none;">
+            <input type="hidden" name="action" value="save_canvas">
+            <input type="hidden" name="canvas_data" id="canvasData">
+        </form>
+        {% endif %}
+        
+        {% if canvas_result %}
+        <div class="result" style="margin-top: 30px; text-align: center;">
+            <h3 style="color:#fff; margin-bottom: 20px;">🎉 Your Custom Collage is Ready!</h3>
+            <img src="{{ url_for('download_clip', filename=canvas_result) }}" alt="Custom Collage" style="max-width: 100%; border-radius: 10px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); margin-bottom: 20px;">
+            <br>
+            <a href="{{ url_for('download_clip', filename=canvas_result) }}" class="download-btn" download style="display: inline-block; padding: 12px 30px; background: #4CAF50; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; transition: background 0.2s;">Download Collage</a>
+        </div>
+        {% endif %}
+    </div>
+    <style>
+.sortable-timeline { list-style: none; padding: 0; margin: 0; }
+.sortable-timeline li { padding: 8px 12px; margin: 4px 0; background: #f0f0f0; border: 1px solid #ccc; cursor: grab; }
+.sortable-timeline li.dragging { opacity: 0.5; }
+.premium-gradient-bg {
+    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px #0003;
+    padding: 2.5em 2em 2em 2em;
+    margin: 2.5em auto 2em auto;
+    max-width: 750px;
+    position: relative;
+    overflow: visible;
+}
+.merge-label { font-weight: 600; font-size: 1.15em; letter-spacing:0.01em; }
+.timeline-preview {
+    display: flex;
+    gap: 22px;
+    margin-bottom: 1.5em;
+    overflow-x: auto;
+    padding: 12px 0;
+    min-height: 130px;
+}
+.timeline-card {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px #0001, 0 1.5px 0 #2575fc33;
+    padding: 10px 10px 6px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 110px;
+    position: relative;
+    border: 2.5px solid #2575fc;
+    cursor: grab;
+    transition: box-shadow 0.2s, border 0.2s, transform 0.15s;
+}
+.timeline-card:hover, .timeline-card.dragging {
+    box-shadow: 0 8px 32px #2575fc55, 0 2px 0 #6a11cb33;
+    border: 2.5px solid #6a11cb;
+    transform: translateY(-4px) scale(1.04);
+    z-index: 2;
+}
+.timeline-card video { width: 90px; height: 68px; object-fit: cover; border-radius: 8px; background: #222; box-shadow:0 1px 6px #2575fc22; }
+.timeline-card .clip-num {
+    position: absolute;
+    top: 6px; left: 6px;
+    background: linear-gradient(135deg,#2575fc 0%,#6a11cb 100%);
+    color: #fff;
+    font-size: 1em; font-weight: bold;
+    border-radius: 50%; width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px #2575fc44;
+    border: 2px solid #fff;
+}
+.timeline-card .clip-name {
+    margin-top: 10px;
+    font-size: 1.05em;
+    text-align: center;
+    color: #2575fc;
+    font-weight: 500;
+    word-break: break-all;
+    letter-spacing:0.01em;
+}
+.premium-btn {
+    background: linear-gradient(90deg,#2575fc 0%,#6a11cb 100%);
+    color: #fff !important;
+    border: none;
+    font-weight: 700;
+    font-size: 1.13em;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px #2575fc33;
+    padding: 0.7em 2.2em;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.13s;
+}
+.premium-btn:hover {
+    background: linear-gradient(90deg,#6a11cb 0%,#2575fc 100%);
+    box-shadow: 0 6px 24px #6a11cb44;
+    transform: translateY(-2px) scale(1.04);
+}
+.merge-progress {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 2em 0 1em 0;
+    min-height: 120px;
+}
+.spinner {
+    border: 6px solid #f3f3f3;
+    border-top: 6px solid #2575fc;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1em;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.merge-progress-text {
+    color: #fff;
+    font-size: 1.15em;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-shadow: 0 2px 8px #0003;
+}
+.btn.btn-success[download] {
+    background: #2575fc !important;
+    color: #fff !important;
+    font-weight: 600;
+    border-radius: 8px;
+    box-shadow: none !important;
+    transition: none !important;
+    filter: none !important;
+}
+.btn.btn-success[download]:hover, .btn.btn-success[download]:active, .btn.btn-success[download]:focus {
+    background: #2575fc !important;
+    color: #fff !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+</style>
+    <script>
+        var videoInput = document.getElementById('video-upload');
+        if (videoInput) {
+            videoInput.addEventListener('change', function() {
+            var fileName = this.files[0] ? this.files[0].name : 'No file selected';
+            document.getElementById('file-name').textContent = fileName;
+                // Show frame manipulation section and load video preview
+                var frameSection = document.getElementById('frame-manipulation-section');
+                var frameVideo = document.getElementById('frame-video-preview');
+                if (this.files[0]) {
+                    frameSection.style.display = '';
+                    var url = URL.createObjectURL(this.files[0]);
+                    frameVideo.src = url;
+                    frameVideo.load();
+                } else {
+                    frameSection.style.display = 'none';
+                    frameVideo.src = '';
+                }
+            });
+        }
+        // Frame-by-frame controls
+        var frameVideo = document.getElementById('frame-video-preview');
+        var prevBtn = document.getElementById('prev-frame-btn');
+        var nextBtn = document.getElementById('next-frame-btn');
+        var frameInfo = document.getElementById('frame-info');
+        var currentFrameSpan = document.getElementById('current-frame');
+        var totalFramesSpan = document.getElementById('total-frames');
+        var currentTimeSpan = document.getElementById('current-time');
+        var exportBtn = document.getElementById('export-frame-btn');
+        var downloadLink = document.getElementById('download-frame-link');
+        var fps = 30; // Assume 30 FPS for now; can be improved by backend
+        function updateFrameInfo() {
+            if (!frameVideo.duration) return;
+            var totalFrames = Math.floor(frameVideo.duration * fps);
+            var currentFrame = Math.floor(frameVideo.currentTime * fps);
+            currentFrameSpan.textContent = currentFrame;
+            totalFramesSpan.textContent = totalFrames;
+            currentTimeSpan.textContent = frameVideo.currentTime.toFixed(2);
+        }
+        if (frameVideo) {
+            frameVideo.addEventListener('loadedmetadata', updateFrameInfo);
+            frameVideo.addEventListener('timeupdate', updateFrameInfo);
+        }
+        if (prevBtn) {
+            prevBtn.addEventListener('click', function() {
+                if (frameVideo.currentTime > 0) {
+                    frameVideo.currentTime = Math.max(0, frameVideo.currentTime - 1/fps);
+                }
+            });
+        }
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function() {
+                if (frameVideo.currentTime < frameVideo.duration) {
+                    frameVideo.currentTime = Math.min(frameVideo.duration, frameVideo.currentTime + 1/fps);
+                }
+            });
+        }
+        if (exportBtn) {
+            exportBtn.addEventListener('click', function() {
+                var canvas = document.createElement('canvas');
+                canvas.width = frameVideo.videoWidth;
+                canvas.height = frameVideo.videoHeight;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(frameVideo, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob(function(blob) {
+                    var url = URL.createObjectURL(blob);
+                    downloadLink.href = url;
+                    downloadLink.download = 'frame_' + Math.floor(frameVideo.currentTime * fps) + '.png';
+                    downloadLink.style.display = '';
+                    downloadLink.textContent = 'Download Exported Frame';
+                }, 'image/png');
+            });
+        }
+        // Timeline Editor functionality
+        var frameVideo = document.getElementById('frame-video-preview');
+        var timelineCanvas = document.getElementById('timeline-canvas');
+        var currentTimeDisplay = document.getElementById('current-time-display');
+        var totalTimeDisplay = document.getElementById('total-time-display');
+        var playPauseBtn = document.getElementById('play-pause-btn');
+        var stepBackBtn = document.getElementById('step-back-btn');
+        var stepForwardBtn = document.getElementById('step-forward-btn');
+        var exportBtn = document.getElementById('export-frame-btn');
+        var downloadLink = document.getElementById('download-frame-link');
+        
+        var isDragging = false;
+        var canvas = timelineCanvas;
+        var ctx = canvas.getContext('2d');
+        
+        // Trim handles variables
+        var trimInHandle = document.getElementById('trim-in-handle');
+        var trimOutHandle = document.getElementById('trim-out-handle');
+        var trimRange = document.getElementById('trim-range');
+        var trimStartTime = document.getElementById('trim-start-time');
+        var trimEndTime = document.getElementById('trim-end-time');
+        var trimDuration = document.getElementById('trim-duration');
+        
+        var isDraggingTrim = false;
+        var draggedHandle = null;
+        var trimInPosition = 0; // 0-100 percentage
+        var trimOutPosition = 100; // 0-100 percentage
+        
+        function formatTime(seconds) {
+            var mins = Math.floor(seconds / 60);
+            var secs = Math.floor(seconds % 60);
+            var ms = Math.floor((seconds % 1) * 100);
+            return mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0') + '.' + ms.toString().padStart(2, '0');
+        }
+        
+        function updateTrimDisplay() {
+            if (!frameVideo.duration) return;
+            
+            var startTime = (trimInPosition / 100) * frameVideo.duration;
+            var endTime = (trimOutPosition / 100) * frameVideo.duration;
+            var duration = endTime - startTime;
+            
+            trimStartTime.textContent = formatTime(startTime);
+            trimEndTime.textContent = formatTime(endTime);
+            trimDuration.textContent = formatTime(duration);
+            
+            // Update handle positions
+            trimInHandle.style.left = trimInPosition + '%';
+            trimOutHandle.style.left = trimOutPosition + '%';
+            
+            // Update trim range
+            trimRange.style.left = trimInPosition + '%';
+            trimRange.style.width = (trimOutPosition - trimInPosition) + '%';
+        }
+        
+        function drawTimeline() {
+            if (!frameVideo.duration) return;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw timeline background
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw trim range highlight
+            var trimInX = (trimInPosition / 100) * canvas.width;
+            var trimOutX = (trimOutPosition / 100) * canvas.width;
+            ctx.fillStyle = 'rgba(79, 172, 254, 0.3)';
+            ctx.fillRect(trimInX, 0, trimOutX - trimInX, canvas.height);
+            
+            // Draw time markers
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 1;
+            var markerInterval = canvas.width / 10;
+            for (var i = 0; i <= 10; i++) {
+                var x = i * markerInterval;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+        }
+        
+        function updateTimeDisplay() {
+            if (!frameVideo.duration) return;
+            currentTimeDisplay.textContent = formatTime(frameVideo.currentTime);
+            totalTimeDisplay.textContent = formatTime(frameVideo.duration);
+            drawTimeline();
+        }
+        
+        // --- Trim handle event listeners (improved) ---
+        if (trimInHandle) {
+            trimInHandle.addEventListener('mousedown', function(e) {
+                e.stopPropagation();
+                isDraggingTrim = true;
+                draggedHandle = 'in';
+                document.body.style.cursor = 'ew-resize';
+            });
+        }
+        if (trimOutHandle) {
+            trimOutHandle.addEventListener('mousedown', function(e) {
+                e.stopPropagation();
+                isDraggingTrim = true;
+                draggedHandle = 'out';
+                document.body.style.cursor = 'ew-resize';
+            });
+        }
+        // Make handles easier to grab by increasing their clickable area
+        [trimInHandle, trimOutHandle].forEach(function(handle) {
+            if (handle) {
+                handle.style.width = '20px';
+                handle.style.marginLeft = '-10px';
+                handle.style.zIndex = 20;
+            }
+        });
+        // --- Improved drag logic ---
+        document.addEventListener('mousemove', function(e) {
+            if (isDraggingTrim) {
+                var rect = canvas.getBoundingClientRect();
+                var x = e.clientX - rect.left;
+                var percentage = Math.max(0, Math.min(100, (x / canvas.width) * 100));
+                if (draggedHandle === 'in') {
+                    if (percentage < trimOutPosition - 5) {
+                        trimInPosition = Math.max(0, Math.min(percentage, trimOutPosition - 5));
+                        // If playhead is left of new IN, move it to IN
+                        var playheadPercent = (frameVideo.currentTime / frameVideo.duration) * 100;
+                        if (playheadPercent < trimInPosition) {
+                            frameVideo.currentTime = (trimInPosition / 100) * frameVideo.duration;
+                        }
+                    }
+                } else if (draggedHandle === 'out') {
+                    if (percentage > trimInPosition + 5) {
+                        trimOutPosition = Math.min(100, Math.max(percentage, trimInPosition + 5));
+                        // If playhead is right of new OUT, move it to OUT
+                        var playheadPercent = (frameVideo.currentTime / frameVideo.duration) * 100;
+                        if (playheadPercent > trimOutPosition) {
+                            frameVideo.currentTime = (trimOutPosition / 100) * frameVideo.duration;
+                        }
+                    }
+                }
+                updateTrimDisplay();
+                drawTimeline();
+            }
+        });
+        document.addEventListener('mouseup', function() {
+            if (isDraggingTrim) {
+                isDraggingTrim = false;
+                draggedHandle = null;
+                document.body.style.cursor = 'default';
+            }
+        });
+        // --- Constrain playhead to trim range ---
+        function seekToPosition(clientX) {
+            var rect = canvas.getBoundingClientRect();
+            var x = clientX - rect.left;
+            var percentage = x / canvas.width * 100;
+            // Clamp to trim range
+            percentage = Math.max(trimInPosition, Math.min(trimOutPosition, percentage));
+            frameVideo.currentTime = (percentage / 100) * frameVideo.duration;
+        }
+        // Only call clampPlayheadToTrim in seekToPosition, playhead drag, and step buttons
+        function clampPlayheadToTrim() {
+            var playheadPercent = (frameVideo.currentTime / frameVideo.duration) * 100;
+            if (playheadPercent < trimInPosition) {
+                frameVideo.currentTime = (trimInPosition / 100) * frameVideo.duration;
+            } else if (playheadPercent > trimOutPosition) {
+                frameVideo.currentTime = (trimOutPosition / 100) * frameVideo.duration;
+            }
+        }
+        if (frameVideo) {
+            frameVideo.addEventListener('timeupdate', function() {
+                updatePlayheadHandle();
+                // Loop playback within trim range
+                if (!frameVideo.paused && frameVideo.duration) {
+                    var playheadPercent = (frameVideo.currentTime / frameVideo.duration) * 100;
+                    if (playheadPercent >= trimOutPosition) {
+                        frameVideo.currentTime = (trimInPosition / 100) * frameVideo.duration + 0.001;
+                        frameVideo.play(); // ensure it keeps playing
+                    }
+                }
+            });
+        }
+        
+        if (playPauseBtn) {
+            playPauseBtn.addEventListener('click', function() {
+                if (frameVideo.paused) {
+                    frameVideo.play();
+                } else {
+                    frameVideo.pause();
+                }
+            });
+        }
+        
+        if (stepBackBtn) {
+            stepBackBtn.addEventListener('click', function() {
+                frameVideo.currentTime = Math.max(0, frameVideo.currentTime - 0.1);
+                clampPlayheadToTrim();
+            });
+        }
+        
+        if (stepForwardBtn) {
+            stepForwardBtn.addEventListener('click', function() {
+                frameVideo.currentTime = Math.min(frameVideo.duration, frameVideo.currentTime + 0.1);
+                clampPlayheadToTrim();
+            });
+        }
+        
+        // Timeline canvas events
+        if (canvas) {
+            canvas.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                seekToPosition(e.clientX);
+            });
+            
+            canvas.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    seekToPosition(e.clientX);
+                }
+            });
+            
+            canvas.addEventListener('mouseup', function() {
+                isDragging = false;
+            });
+            
+            canvas.addEventListener('click', function(e) {
+                if (!isDragging) {
+                    seekToPosition(e.clientX);
+                    // Start playback from the clicked position
+                    if (frameVideo.paused) {
+                        frameVideo.play();
+                    }
+                }
+            });
+        }
+        
+        if (exportBtn) {
+            exportBtn.addEventListener('click', function() {
+                var videoFile = videoInput.files[0];
+                if (!videoFile) {
+                    alert('Please upload a video first');
+                    return;
+                }
+                
+                // Show loading state
+                exportBtn.textContent = 'Extracting...';
+                exportBtn.disabled = true;
+                
+                // Send request to backend
+                fetch('/extract_frame', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        filename: videoFile.name,
+                        timestamp: frameVideo.currentTime
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        downloadLink.href = data.download_url;
+                        downloadLink.download = data.frame_filename;
+                        downloadLink.style.display = '';
+                        downloadLink.textContent = 'Download Frame';
+                    } else {
+                        alert('Error extracting frame: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error extracting frame. Please try again.');
+                })
+                .finally(() => {
+                    // Reset button state
+                    exportBtn.textContent = 'Export Current Frame';
+                    exportBtn.disabled = false;
+                });
+            });
+        }
+        
+        // --- Playhead handle drag logic ---
+        var playheadHandle = document.getElementById('playhead-handle');
+        var isDraggingPlayhead = false;
+        if (playheadHandle) {
+            playheadHandle.addEventListener('mousedown', function(e) {
+                e.stopPropagation();
+                isDraggingPlayhead = true;
+                document.body.style.cursor = 'pointer';
+            });
+        }
+        document.addEventListener('mousemove', function(e) {
+            if (isDraggingPlayhead) {
+                var rect = canvas.getBoundingClientRect();
+                var x = e.clientX - rect.left;
+                var percentage = x / canvas.width * 100;
+                // Clamp to trim range
+                percentage = Math.max(trimInPosition, Math.min(trimOutPosition, percentage));
+                frameVideo.currentTime = (percentage / 100) * frameVideo.duration;
+            }
+        });
+        document.addEventListener('mouseup', function() {
+            if (isDraggingPlayhead) {
+                isDraggingPlayhead = false;
+                document.body.style.cursor = 'default';
+            }
+        });
+        // Update playhead handle position on timeupdate and trim change
+        function updatePlayheadHandle() {
+            if (!frameVideo.duration) return;
+            var playheadPercent = (frameVideo.currentTime / frameVideo.duration) * 100;
+            // Clamp to trim range
+            playheadPercent = Math.max(trimInPosition, Math.min(trimOutPosition, playheadPercent));
+            playheadHandle.style.left = playheadPercent + '%';
+        }
+        if (frameVideo) {
+            frameVideo.addEventListener('timeupdate', function() {
+                updatePlayheadHandle();
+                // Loop playback within trim range
+                if (!frameVideo.paused && frameVideo.duration) {
+                    var playheadPercent = (frameVideo.currentTime / frameVideo.duration) * 100;
+                    if (playheadPercent >= trimOutPosition) {
+                        frameVideo.currentTime = (trimInPosition / 100) * frameVideo.duration + 0.001;
+                        frameVideo.play(); // ensure it keeps playing
+                    }
+                }
+            });
+        }
+        // Also update on trim change
+        function updateTrimDisplayAndPlayhead() {
+            updateTrimDisplay();
+            updatePlayheadHandle();
+        }
+        // Replace all updateTrimDisplay() calls with updateTrimDisplayAndPlayhead()
+        // (for brevity, you may want to do this in your editor for all calls)
+
+    </script>
+    <script>
+        // Show selected files for merging
+        const mergeClipsInput = document.getElementById('merge-clips');
+        const timelinePreview = document.getElementById('merge-timeline-preview');
+        const clipOrderInput = document.getElementById('clip-order-input');
+        let fileList = [];
+
+        function updateTimelinePreview() {
+            timelinePreview.innerHTML = '';
+            fileList.forEach((file, idx) => {
+                const card = document.createElement('div');
+                card.className = 'timeline-card';
+                card.draggable = true;
+                card.dataset.index = idx;
+                // Number
+                const num = document.createElement('div');
+                num.className = 'clip-num';
+                num.textContent = idx + 1;
+                card.appendChild(num);
+                // Video thumbnail
+                const video = document.createElement('video');
+                video.src = URL.createObjectURL(file);
+                video.muted = true;
+                video.playsInline = true;
+                video.preload = 'metadata';
+                video.addEventListener('loadeddata', () => video.currentTime = 0.1);
+                card.appendChild(video);
+                // Name
+                const name = document.createElement('div');
+                name.className = 'clip-name';
+                name.textContent = file.name;
+                card.appendChild(name);
+                timelinePreview.appendChild(card);
+            });
+            // Update hidden input with current order
+            clipOrderInput.value = fileList.map(f => f.name).join(',');
+        }
+
+        if (mergeClipsInput && timelinePreview) {
+            mergeClipsInput.addEventListener('change', function() {
+                fileList = Array.from(this.files);
+                updateTimelinePreview();
+            });
+        }
+
+        // Drag-and-drop reordering for timeline preview
+        let dragSrcIdx = null;
+        timelinePreview.addEventListener('dragstart', function(e) {
+            if (e.target.classList.contains('timeline-card')) {
+                dragSrcIdx = Number(e.target.dataset.index);
+                e.target.classList.add('dragging');
+            }
+        });
+        timelinePreview.addEventListener('dragend', function(e) {
+            if (e.target.classList.contains('timeline-card')) {
+                e.target.classList.remove('dragging');
+            }
+        });
+        timelinePreview.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            const afterElement = getDragAfterElement(timelinePreview, e.clientX);
+            const dragging = timelinePreview.querySelector('.dragging');
+            if (afterElement == null) {
+                timelinePreview.appendChild(dragging);
+            } else {
+                timelinePreview.insertBefore(dragging, afterElement);
+            }
+        });
+        timelinePreview.addEventListener('drop', function(e) {
+            e.preventDefault();
+            const dragging = timelinePreview.querySelector('.dragging');
+            if (!dragging) return;
+            const newIdx = Array.from(timelinePreview.children).indexOf(dragging);
+            if (dragSrcIdx !== null && newIdx !== dragSrcIdx) {
+                const moved = fileList.splice(dragSrcIdx, 1)[0];
+                fileList.splice(newIdx, 0, moved);
+                updateTimelinePreview();
+            }
+            dragSrcIdx = null;
+        });
+        function getDragAfterElement(container, x) {
+            const draggableElements = [...container.querySelectorAll('.timeline-card:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = x - box.left - box.width / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: -Infinity }).element;
+        }
+        // On form submit, build a new DataTransfer with the reordered files
+        const mergeForm = document.getElementById('merge-form');
+        const mergeBtn = document.getElementById('merge-btn');
+        const mergeProgress = document.getElementById('merge-progress');
+        if (mergeForm) {
+            mergeForm.addEventListener('submit', function(e) {
+                if (fileList.length < 2) {
+                    e.preventDefault();
+                    alert('Please select at least two clips to merge.');
+                    return false;
+                }
+                // Show spinner, hide timeline, disable button
+                mergeBtn.disabled = true;
+                mergeBtn.textContent = 'Merging...';
+                timelinePreview.style.display = 'none';
+                mergeProgress.style.display = 'flex';
+                // Rebuild FormData with reordered files
+                const formData = new FormData();
+                fileList.forEach(f => formData.append('clips', f));
+                formData.append('clip_order', fileList.map(f => f.name).join(','));
+                fetch('/merge', {
+                    method: 'POST',
+                    body: formData
+                }).then(resp => resp.text()).then(html => {
+                    document.open();
+                    document.write(html);
+                    document.close();
+                });
+                e.preventDefault();
+                return false;
+            });
+        }
+    </script>
+    
+    <!-- Audio/Video Separation JavaScript -->
+    <script>
+        // Audio/Video Separation functionality
+        const separationVideoInput = document.getElementById('separation-video');
+        const separationFileInfo = document.getElementById('separation-file-info');
+        const separationForm = document.getElementById('separation-form');
+        const separationBtn = document.getElementById('separation-btn');
+        const separationProgress = document.getElementById('separation-progress');
+
+        if (separationVideoInput) {
+            separationVideoInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    // Display file information
+                    const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+                    separationFileInfo.innerHTML = `
+                        <strong>Selected:</strong> ${file.name}<br>
+                        <strong>Size:</strong> ${fileSize} MB<br>
+                        <strong>Type:</strong> ${file.type}
+                    `;
+                    
+                    // Show audio timeline section and load audio preview
+                    const audioTimelineSection = document.getElementById('audio-timeline-section');
+                    const audioPreview = document.getElementById('audio-preview');
+                    if (file) {
+                        audioTimelineSection.style.display = 'block';
+                        const url = URL.createObjectURL(file);
+                        audioPreview.src = url;
+                        audioPreview.load();
+                        initAudioTimeline();
+                    }
+                } else {
+                    separationFileInfo.innerHTML = '';
+                    // Only hide timeline if no audio file is selected either
+                    const audioInput = document.getElementById('separation-audio');
+                    if (!audioInput.files[0]) {
+                        document.getElementById('audio-timeline-section').style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        // Handle audio file upload
+        const separationAudioInput = document.getElementById('separation-audio');
+        if (separationAudioInput) {
+            separationAudioInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    // Display file information
+                    const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+                    document.getElementById('separation-audio-file-info').innerHTML = `
+                        <strong>Selected:</strong> ${file.name}<br>
+                        <strong>Size:</strong> ${fileSize} MB<br>
+                        <strong>Type:</strong> ${file.type}
+                    `;
+                    
+                    // Show audio timeline section and load audio preview
+                    const audioTimelineSection = document.getElementById('audio-timeline-section');
+                    const audioPreview = document.getElementById('audio-preview');
+                    if (file) {
+                        audioTimelineSection.style.display = 'block';
+                        const url = URL.createObjectURL(file);
+                        audioPreview.src = url;
+                        audioPreview.load();
+                        initAudioTimeline();
+                    }
+                } else {
+                    document.getElementById('separation-audio-file-info').innerHTML = '';
+                    // Only hide timeline if no video file is selected either
+                    const videoInput = document.getElementById('separation-video');
+                    if (!videoInput.files[0]) {
+                        document.getElementById('audio-timeline-section').style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        if (separationForm) {
+            separationForm.addEventListener('submit', function(e) {
+                const videoFile = separationVideoInput.files[0];
+                const audioFile = separationAudioInput.files[0];
+                
+                if (!videoFile && !audioFile) {
+                    e.preventDefault();
+                    alert('Please select either a video file to separate or an audio file to create clips.');
+                    return false;
+                }
+
+                // Show progress, hide form, disable button
+                separationBtn.disabled = true;
+                separationBtn.textContent = 'Processing...';
+                separationForm.style.display = 'none';
+                separationProgress.style.display = 'flex';
+
+                // Submit form normally - let the page reload with results
+                return true;
+            });
+        }
+
+        // Add hover effects for separation button
+        const separationBtnElement = document.querySelector('.separation-btn');
+        if (separationBtnElement) {
+            separationBtnElement.addEventListener('mouseenter', function() {
+                this.style.background = 'linear-gradient(90deg,#764ba2 0%,#667eea 100%)';
+                this.style.boxShadow = '0 6px 24px #764ba244';
+                this.style.transform = 'translateY(-2px) scale(1.04)';
+            });
+            
+            separationBtnElement.addEventListener('mouseleave', function() {
+                this.style.background = 'linear-gradient(90deg,#667eea 0%,#764ba2 100%)';
+                this.style.boxShadow = '0 2px 12px #667eea33';
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        }
+
+        // Add hover effects for playhead and trim handles
+        function addPlayheadHoverEffects() {
+            const playheadHandle = document.getElementById('audio-playhead-handle');
+            const playheadTimeDisplay = document.getElementById('playhead-time-display');
+            const trimInHandle = document.getElementById('audio-trim-in-handle');
+            const trimOutHandle = document.getElementById('audio-trim-out-handle');
+            
+            if (playheadHandle && playheadTimeDisplay) {
+                playheadHandle.addEventListener('mouseenter', function() {
+                    this.style.transform = 'scale(1.1)';
+                    this.style.boxShadow = '0 4px 16px rgba(255,107,107,0.8)';
+                });
+                
+                playheadHandle.addEventListener('mouseleave', function() {
+                    this.style.transform = 'scale(1)';
+                    this.style.boxShadow = '0 2px 8px rgba(255,107,107,0.6)';
+                });
+                
+                playheadTimeDisplay.addEventListener('mouseenter', function() {
+                    this.style.transform = 'scale(1.05)';
+                    this.style.boxShadow = '0 4px 16px rgba(255,107,107,0.6)';
+                });
+                
+                playheadTimeDisplay.addEventListener('mouseleave', function() {
+                    this.style.transform = 'scale(1)';
+                    this.style.boxShadow = '0 2px 8px rgba(255,107,107,0.4)';
+                });
+            }
+            
+            // Add hover effects for trim handles
+            if (trimInHandle) {
+                trimInHandle.addEventListener('mouseenter', function() {
+                    this.style.transform = 'scale(1.05)';
+                    this.style.boxShadow = '0 4px 16px rgba(102,126,234,0.6)';
+                    this.style.zIndex = '15';
+                });
+                
+                trimInHandle.addEventListener('mouseleave', function() {
+                    if (!isDraggingAudioTrim || draggedAudioHandle !== 'in') {
+                        this.style.transform = 'scale(1)';
+                        this.style.boxShadow = '0 2px 8px rgba(102,126,234,0.4)';
+                        this.style.zIndex = '10';
+                    }
+                });
+            }
+            
+            if (trimOutHandle) {
+                trimOutHandle.addEventListener('mouseenter', function() {
+                    this.style.transform = 'scale(1.05)';
+                    this.style.boxShadow = '0 4px 16px rgba(118,75,162,0.6)';
+                    this.style.zIndex = '15';
+                });
+                
+                trimOutHandle.addEventListener('mouseleave', function() {
+                    if (!isDraggingAudioTrim || draggedAudioHandle !== 'out') {
+                        this.style.transform = 'scale(1)';
+                        this.style.boxShadow = '0 2px 8px rgba(118,75,162,0.4)';
+                        this.style.zIndex = '10';
+                    }
+                });
+            }
+        }
+        
+        // Initialize playhead hover effects when timeline is initialized
+        if (typeof initAudioTimeline === 'function') {
+            const originalInit = initAudioTimeline;
+            initAudioTimeline = function() {
+                originalInit();
+                addPlayheadHoverEffects();
+            };
+        }
+
+        // Audio Timeline functionality
+        let audioTimelineInitialized = false;
+        
+        function initAudioTimeline() {
+            if (audioTimelineInitialized) return;
+            
+            const audioPreview = document.getElementById('audio-preview');
+            const audioTimelineCanvas = document.getElementById('audio-timeline-canvas');
+            const audioCurrentTime = document.getElementById('audio-current-time');
+            const audioTotalTime = document.getElementById('audio-total-time');
+            const audioPlayPauseBtn = document.getElementById('audio-play-pause-btn');
+            const audioStepBackBtn = document.getElementById('audio-step-back-btn');
+            const audioStepForwardBtn = document.getElementById('audio-step-forward-btn');
+            
+            // Audio trim handles
+            const audioTrimInHandle = document.getElementById('audio-trim-in-handle');
+            const audioTrimOutHandle = document.getElementById('audio-trim-out-handle');
+            const audioTrimRange = document.getElementById('audio-trim-range');
+            const audioPlayheadContainer = document.getElementById('audio-playhead-container');
+            const audioPlayheadHandle = document.getElementById('audio-playhead-handle');
+            const playheadTimeDisplay = document.getElementById('playhead-time-display');
+            const audioTrimStartTime = document.getElementById('audio-trim-start-time');
+            const audioTrimEndTime = document.getElementById('audio-trim-end-time');
+            const audioTrimDuration = document.getElementById('audio-trim-duration');
+            
+            // Audio split settings
+            const enableAudioSplit = document.getElementById('enable-audio-split');
+            const audioSplitSettings = document.getElementById('audio-split-settings');
+            const audioStartTime = document.getElementById('audio-start-time');
+            const audioEndTime = document.getElementById('audio-end-time');
+            
+            let isDraggingAudioTrim = false;
+            let draggedAudioHandle = null;
+            let audioTrimInPosition = 0;
+            let audioTrimOutPosition = 100;
+            let isDraggingAudioPlayhead = false;
+            
+            function formatAudioTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                const ms = Math.floor((seconds % 1) * 100);
+                return mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0') + '.' + ms.toString().padStart(2, '0');
+            }
+            
+            function updateAudioTrimDisplay() {
+                if (!audioPreview.duration) return;
+                
+                const startTime = (audioTrimInPosition / 100) * audioPreview.duration;
+                const endTime = (audioTrimOutPosition / 100) * audioPreview.duration;
+                const duration = endTime - startTime;
+                
+                audioTrimStartTime.textContent = formatAudioTime(startTime);
+                audioTrimEndTime.textContent = formatAudioTime(endTime);
+                audioTrimDuration.textContent = formatAudioTime(duration);
+                
+                // Update handle positions
+                audioTrimInHandle.style.left = audioTrimInPosition + '%';
+                audioTrimOutHandle.style.left = audioTrimOutPosition + '%';
+                
+                // Update trim range
+                audioTrimRange.style.left = audioTrimInPosition + '%';
+                audioTrimRange.style.width = (audioTrimOutPosition - audioTrimInPosition) + '%';
+                
+                // Update split settings if enabled
+                if (enableAudioSplit.checked) {
+                    audioStartTime.value = formatAudioTime(startTime);
+                    audioEndTime.value = formatAudioTime(endTime);
+                }
+            }
+            
+            function drawAudioTimeline() {
+                if (!audioPreview.duration) return;
+                
+                const canvas = audioTimelineCanvas;
+                const ctx = canvas.getContext('2d');
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw timeline background
+                ctx.fillStyle = '#2a2a2a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw trim range highlight
+                const trimInX = (audioTrimInPosition / 100) * canvas.width;
+                const trimOutX = (audioTrimOutPosition / 100) * canvas.width;
+                ctx.fillStyle = 'rgba(102, 126, 234, 0.3)';
+                ctx.fillRect(trimInX, 0, trimOutX - trimInX, canvas.height);
+                
+                // Draw time markers
+                ctx.strokeStyle = '#555';
+                ctx.lineWidth = 1;
+                const markerInterval = canvas.width / 10;
+                for (let i = 0; i <= 10; i++) {
+                    const x = i * markerInterval;
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, canvas.height);
+                    ctx.stroke();
+                }
+            }
+            
+            function updateAudioTimeDisplay() {
+                if (!audioPreview.duration) return;
+                audioCurrentTime.textContent = formatAudioTime(audioPreview.currentTime);
+                audioTotalTime.textContent = formatAudioTime(audioPreview.duration);
+                drawAudioTimeline();
+            }
+            
+            function updateAudioPlayheadHandle() {
+                if (!audioPreview.duration) return;
+                const playheadPercent = (audioPreview.currentTime / audioPreview.duration) * 100;
+                // Clamp playhead to trim range
+                const clampedPercent = Math.max(audioTrimInPosition, Math.min(audioTrimOutPosition, playheadPercent));
+                audioPlayheadContainer.style.left = clampedPercent + '%';
+                playheadTimeDisplay.textContent = formatAudioTime(audioPreview.currentTime);
+            }
+            
+            // Audio preview event listeners
+            if (audioPreview) {
+                audioPreview.addEventListener('loadedmetadata', updateAudioTimeDisplay);
+                audioPreview.addEventListener('timeupdate', function() {
+                    updateAudioTimeDisplay();
+                    updateAudioPlayheadHandle();
+                    
+                    // Loop playback within trim range
+                    if (!audioPreview.paused && audioPreview.duration) {
+                        const playheadPercent = (audioPreview.currentTime / audioPreview.duration) * 100;
+                        if (playheadPercent >= audioTrimOutPosition) {
+                            // Jump back to start of trim range
+                            const startTime = (audioTrimInPosition / 100) * audioPreview.duration;
+                            audioPreview.currentTime = startTime;
+                            audioPreview.play(); // ensure it keeps playing
+                        }
+                    }
+                });
+            }
+            
+            // Audio playback controls
+            if (audioPlayPauseBtn) {
+                audioPlayPauseBtn.addEventListener('click', function() {
+                    if (audioPreview.paused) {
+                        // Start playback from trim start position
+                        const startTime = (audioTrimInPosition / 100) * audioPreview.duration;
+                        audioPreview.currentTime = startTime;
+                        audioPreview.play();
+                        this.textContent = '⏸️';
+                    } else {
+                        audioPreview.pause();
+                        this.textContent = '▶️';
+                    }
+                });
+            }
+            
+            if (audioStepBackBtn) {
+                audioStepBackBtn.addEventListener('click', function() {
+                    const startTime = (audioTrimInPosition / 100) * audioPreview.duration;
+                    audioPreview.currentTime = Math.max(startTime, audioPreview.currentTime - 1);
+                });
+            }
+            
+            if (audioStepForwardBtn) {
+                audioStepForwardBtn.addEventListener('click', function() {
+                    const endTime = (audioTrimOutPosition / 100) * audioPreview.duration;
+                    audioPreview.currentTime = Math.min(endTime, audioPreview.currentTime + 1);
+                });
+            }
+            
+            // Audio trim handle event listeners
+            if (audioTrimInHandle) {
+                audioTrimInHandle.addEventListener('mousedown', function(e) {
+                    e.stopPropagation();
+                    isDraggingAudioTrim = true;
+                    draggedAudioHandle = 'in';
+                    document.body.style.cursor = 'ew-resize';
+                    // Add visual feedback
+                    this.style.transform = 'scale(1.1)';
+                    this.style.zIndex = '25';
+                });
+            }
+            
+            if (audioTrimOutHandle) {
+                audioTrimOutHandle.addEventListener('mousedown', function(e) {
+                    e.stopPropagation();
+                    isDraggingAudioTrim = true;
+                    draggedAudioHandle = 'out';
+                    document.body.style.cursor = 'ew-resize';
+                    // Add visual feedback
+                    this.style.transform = 'scale(1.1)';
+                    this.style.zIndex = '25';
+                });
+            }
+            
+            // Audio playhead drag
+            if (audioPlayheadHandle) {
+                audioPlayheadHandle.addEventListener('mousedown', function(e) {
+                    e.stopPropagation();
+                    isDraggingAudioPlayhead = true;
+                    document.body.style.cursor = 'ns-resize';
+                });
+            }
+            
+            // Also allow dragging from the time display
+            if (playheadTimeDisplay) {
+                playheadTimeDisplay.addEventListener('mousedown', function(e) {
+                    e.stopPropagation();
+                    isDraggingAudioPlayhead = true;
+                    document.body.style.cursor = 'ns-resize';
+                });
+            }
+            
+            // Global mouse events for audio timeline
+            document.addEventListener('mousemove', function(e) {
+                if (isDraggingAudioTrim) {
+                    const rect = audioTimelineCanvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const percentage = Math.max(0, Math.min(100, (x / audioTimelineCanvas.width) * 100));
+                    
+                    if (draggedAudioHandle === 'in') {
+                        // Allow closer positioning but with minimum gap
+                        const minGap = 2; // 2% minimum gap
+                        if (percentage < audioTrimOutPosition - minGap) {
+                            audioTrimInPosition = Math.max(0, Math.min(percentage, audioTrimOutPosition - minGap));
+                        }
+                    } else if (draggedAudioHandle === 'out') {
+                        // Allow closer positioning but with minimum gap
+                        const minGap = 2; // 2% minimum gap
+                        if (percentage > audioTrimInPosition + minGap) {
+                            audioTrimOutPosition = Math.min(100, Math.max(percentage, audioTrimInPosition + minGap));
+                        }
+                    }
+                    updateAudioTrimDisplay();
+                    drawAudioTimeline();
+                } else if (isDraggingAudioPlayhead) {
+                    const rect = audioTimelineCanvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const percentage = x / audioTimelineCanvas.width * 100;
+                    const clampedPercentage = Math.max(audioTrimInPosition, Math.min(audioTrimOutPosition, percentage));
+                    audioPreview.currentTime = (clampedPercentage / 100) * audioPreview.duration;
+                    // Update playhead position immediately for responsive dragging
+                    audioPlayheadContainer.style.left = clampedPercentage + '%';
+                    playheadTimeDisplay.textContent = formatAudioTime(audioPreview.currentTime);
+                }
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (isDraggingAudioTrim) {
+                    isDraggingAudioTrim = false;
+                    draggedAudioHandle = null;
+                    document.body.style.cursor = 'default';
+                    // Reset visual feedback
+                    audioTrimInHandle.style.transform = 'scale(1)';
+                    audioTrimOutHandle.style.transform = 'scale(1)';
+                    audioTrimInHandle.style.zIndex = '10';
+                    audioTrimOutHandle.style.zIndex = '10';
+                }
+                if (isDraggingAudioPlayhead) {
+                    isDraggingAudioPlayhead = false;
+                    document.body.style.cursor = 'default';
+                }
+            });
+            
+            // Audio timeline canvas click
+            if (audioTimelineCanvas) {
+                audioTimelineCanvas.addEventListener('click', function(e) {
+                    const rect = this.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const percentage = x / this.width * 100;
+                    const clampedPercentage = Math.max(audioTrimInPosition, Math.min(audioTrimOutPosition, percentage));
+                    audioPreview.currentTime = (clampedPercentage / 100) * audioPreview.duration;
+                });
+            }
+            
+            // Audio split toggle
+            if (enableAudioSplit) {
+                enableAudioSplit.addEventListener('change', function() {
+                    if (this.checked) {
+                        audioSplitSettings.style.display = 'block';
+                        updateAudioTrimDisplay(); // Update the input fields
+                    } else {
+                        audioSplitSettings.style.display = 'none';
+                    }
+                });
+            }
+            
+            audioTimelineInitialized = true;
+        }
+    </script>
+    
+    <!-- Image Collage JavaScript -->
+    <script>
+        // Image Collage functionality
+        const collageForm = document.getElementById('collage-form');
+        const collageImages = document.getElementById('collage-images');
+        const collageProgress = document.getElementById('collage-progress');
+
+        // Handle collage form submission
+        if (collageForm) {
+            collageForm.addEventListener('submit', function(e) {
+                const files = collageImages.files;
+                
+                if (files.length < 2) {
+                    e.preventDefault();
+                    alert('Please select at least 2 images for the collage.');
+                    return false;
+                }
+
+                // Show progress, hide form
+                collageProgress.style.display = 'flex';
+                collageForm.style.display = 'none';
+
+                // Submit form normally - let the page reload with results
+                return true;
+            });
+        }
+
+        // Add hover effects for collage button
+        const collageBtn = document.querySelector('.collage-btn');
+        if (collageBtn) {
+            collageBtn.addEventListener('mouseenter', function() {
+                this.style.background = 'linear-gradient(90deg,#ee5a24 0%,#ff6b6b 100%)';
+                this.style.boxShadow = '0 6px 24px #ee5a2444';
+                this.style.transform = 'translateY(-2px) scale(1.04)';
+            });
+            
+            collageBtn.addEventListener('mouseleave', function() {
+                this.style.background = 'linear-gradient(90deg,#ff6b6b 0%,#ee5a24 100%)';
+                this.style.boxShadow = '0 2px 12px #ff6b6b33';
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        }
+
+        // Preview selected images (optional enhancement)
+        if (collageImages) {
+            collageImages.addEventListener('change', function() {
+                const files = this.files;
+                if (files.length > 0) {
+                    // You could add a preview here if needed
+                    console.log(`Selected ${files.length} images for collage`);
+                }
+            });
+        }
+    </script>
+    
+    <!-- Advanced Editor JavaScript -->
+    <script>
+        // Advanced Editor functionality
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let draggedImages = [];
+        let selectedImage = null;
+        let isDragging = false;
+        let isResizing = false;
+        let dragOffset = { x: 0, y: 0 };
+        let resizeHandle = null;
+        let startResizeCoords = null;
+
+        // Initialize canvas
+        function initCanvas() {
+            if (canvas && ctx) {
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        // Clear canvas
+        function clearCanvas() {
+            draggedImages = [];
+            selectedImage = null;
+            initCanvas();
+            updateResizeHandles();
+        }
+
+        // Delete selected image
+        function deleteSelected() {
+            if (selectedImage) {
+                const index = draggedImages.indexOf(selectedImage);
+                if (index > -1) {
+                    draggedImages.splice(index, 1);
+                    selectedImage = null;
+                    drawCanvas();
+                    updateResizeHandles();
+                }
+            }
+        }
+
+        // Bring selected image to front
+        function bringToFront() {
+            if (selectedImage) {
+                const index = draggedImages.indexOf(selectedImage);
+                if (index > -1 && index < draggedImages.length - 1) {
+                    draggedImages.splice(index, 1);
+                    draggedImages.push(selectedImage);
+                    drawCanvas();
+                    updateResizeHandles();
+                }
+            }
+        }
+
+        // Send selected image to back
+        function sendToBack() {
+            if (selectedImage) {
+                const index = draggedImages.indexOf(selectedImage);
+                if (index > 0) {
+                    draggedImages.splice(index, 1);
+                    draggedImages.unshift(selectedImage);
+                    drawCanvas();
+                    updateResizeHandles();
+                }
+            }
+        }
+
+        // Draw all images on canvas
+        function drawCanvas() {
+            if (!canvas || !ctx) return;
+            
+            initCanvas();
+            draggedImages.forEach(img => {
+                ctx.drawImage(img.element, img.x, img.y, img.width, img.height);
+                
+                // Draw selection border for selected image
+                if (img === selectedImage) {
+                    ctx.strokeStyle = '#ff6b6b';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(img.x - 3, img.y - 3, img.width + 6, img.height + 6);
+                    
+                    // Draw corner indicators
+                    const corners = [
+                        { x: img.x, y: img.y },
+                        { x: img.x + img.width, y: img.y },
+                        { x: img.x, y: img.y + img.height },
+                        { x: img.x + img.width, y: img.y + img.height }
+                    ];
+                    
+                    ctx.fillStyle = '#ff6b6b';
+                    corners.forEach(corner => {
+                        ctx.beginPath();
+                        ctx.arc(corner.x, corner.y, 4, 0, 2 * Math.PI);
+                        ctx.fill();
+                    });
+                }
+            });
+        }
+
+        // Update resize handles
+        function updateResizeHandles() {
+            const handlesContainer = document.getElementById('resizeHandles');
+            if (!handlesContainer) return;
+            
+            handlesContainer.innerHTML = '';
+            
+            if (selectedImage && canvas) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = rect.width / canvas.width;
+                const scaleY = rect.height / canvas.height;
+                
+                // Calculate handle positions in display coordinates
+                const handles = [
+                    { class: 'nw', x: selectedImage.x * scaleX, y: selectedImage.y * scaleY },
+                    { class: 'ne', x: (selectedImage.x + selectedImage.width) * scaleX, y: selectedImage.y * scaleY },
+                    { class: 'sw', x: selectedImage.x * scaleX, y: (selectedImage.y + selectedImage.height) * scaleY },
+                    { class: 'se', x: (selectedImage.x + selectedImage.width) * scaleX, y: (selectedImage.y + selectedImage.height) * scaleY }
+                ];
+                
+                handles.forEach(handle => {
+                    const handleEl = document.createElement('div');
+                    handleEl.className = `resize-handle ${handle.class}`;
+                    handleEl.style.cssText = `
+                        position: absolute;
+                        width: 16px;
+                        height: 16px;
+                        background: #ff6b6b;
+                        border: 3px solid white;
+                        border-radius: 50%;
+                        cursor: pointer;
+                        z-index: 10;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                        transition: transform 0.1s ease;
+                        pointer-events: auto;
+                        left: ${handle.x - 8}px;
+                        top: ${handle.y - 8}px;
+                    `;
+                    handleEl.dataset.handle = handle.class;
+                    
+                    // Add direct event listeners to handles
+                    handleEl.addEventListener('mousedown', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        isResizing = true;
+                        resizeHandle = this.dataset.handle;
+                        const coords = getCanvasCoords(e.clientX, e.clientY);
+                        startResizeCoords = { x: coords.x, y: coords.y };
+                        this.style.background = '#ff0000';
+                        this.style.transform = 'scale(1.3)';
+                        console.log('Resize started:', resizeHandle);
+                    });
+                    
+                    handlesContainer.appendChild(handleEl);
+                });
+            }
+        }
+
+        // Get canvas coordinates from mouse coordinates
+        function getCanvasCoords(mouseX, mouseY) {
+            if (!canvas) return { x: 0, y: 0 };
+            
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (mouseX - rect.left) * scaleX,
+                y: (mouseY - rect.top) * scaleY
+            };
+        }
+
+        // Save collage
+        function saveCollage() {
+            if (!canvas) return;
+            
+            const canvasData = canvas.toDataURL('image/png');
+            document.getElementById('canvasData').value = canvasData;
+            document.getElementById('saveForm').submit();
+        }
+
+        // Initialize editor when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            if (canvas) {
+                initCanvas();
+                
+                const imageItems = document.querySelectorAll('.image-item');
+                
+                imageItems.forEach(item => {
+                    item.addEventListener('dragstart', function(e) {
+                        this.style.opacity = '0.5';
+                        const imgSrc = this.getAttribute('data-src');
+                        e.dataTransfer.setData('text/plain', imgSrc);
+                    });
+                    
+                    item.addEventListener('dragend', function() {
+                        this.style.opacity = '1';
+                    });
+                });
+                
+                // Handle canvas drop
+                canvas.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                });
+                
+                canvas.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    const imgSrc = e.dataTransfer.getData('text/plain');
+                    
+                    const img = new Image();
+                    img.onload = function() {
+                        const coords = getCanvasCoords(e.clientX, e.clientY);
+                        
+                        // Scale image to fit canvas better
+                        const maxWidth = 300;
+                        const maxHeight = 400;
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        if (width > maxWidth) {
+                            height = (height * maxWidth) / width;
+                            width = maxWidth;
+                        }
+                        if (height > maxHeight) {
+                            width = (width * maxHeight) / height;
+                            height = maxHeight;
+                        }
+                        
+                        const newImage = {
+                            element: img,
+                            x: coords.x - width/2,
+                            y: coords.y - height/2,
+                            width: width,
+                            height: height
+                        };
+                        
+                        draggedImages.push(newImage);
+                        selectedImage = newImage;
+                        drawCanvas();
+                        updateResizeHandles();
+                    };
+                    img.src = imgSrc;
+                });
+                
+                // Handle canvas mouse events
+                canvas.addEventListener('mousedown', function(e) {
+                    const coords = getCanvasCoords(e.clientX, e.clientY);
+                    
+                    // Check if clicking on resize handle
+                    const handle = e.target.closest('.resize-handle');
+                    if (handle) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        isResizing = true;
+                        resizeHandle = handle.dataset.handle;
+                        startResizeCoords = { x: coords.x, y: coords.y };
+                        handle.style.background = '#ff0000';
+                        handle.style.transform = 'scale(1.3)';
+                        console.log('Resize started from canvas:', resizeHandle);
+                        return;
+                    }
+                    
+                    // Check if clicking on an image
+                    for (let i = draggedImages.length - 1; i >= 0; i--) {
+                        const img = draggedImages[i];
+                        if (coords.x >= img.x && coords.x <= img.x + img.width &&
+                            coords.y >= img.y && coords.y <= img.y + img.height) {
+                            selectedImage = img;
+                            isDragging = true;
+                            dragOffset.x = coords.x - img.x;
+                            dragOffset.y = coords.y - img.y;
+                            updateResizeHandles();
+                            console.log('Drag started on image');
+                            break;
+                        } else {
+                            if (selectedImage === img) {
+                                selectedImage = null;
+                                updateResizeHandles();
+                            }
+                        }
+                    }
+                });
+                
+                canvas.addEventListener('mousemove', function(e) {
+                    const coords = getCanvasCoords(e.clientX, e.clientY);
+                    
+                    if (isDragging && selectedImage) {
+                        // Ensure image stays within canvas bounds during drag
+                        let newX = coords.x - dragOffset.x;
+                        let newY = coords.y - dragOffset.y;
+                        
+                        // Keep image within canvas bounds
+                        if (newX < 0) newX = 0;
+                        if (newY < 0) newY = 0;
+                        if (newX + selectedImage.width > canvas.width) {
+                            newX = canvas.width - selectedImage.width;
+                        }
+                        if (newY + selectedImage.height > canvas.height) {
+                            newY = canvas.height - selectedImage.height;
+                        }
+                        
+                        selectedImage.x = newX;
+                        selectedImage.y = newY;
+                        drawCanvas();
+                        updateResizeHandles();
+                    } else if (isResizing && selectedImage && resizeHandle) {
+                        console.log('Resizing:', resizeHandle, coords);
+                        const minSize = 50;
+                        
+                        switch (resizeHandle) {
+                            case 'se': // Bottom-right corner
+                                selectedImage.width = Math.max(minSize, coords.x - selectedImage.x);
+                                selectedImage.height = Math.max(minSize, coords.y - selectedImage.y);
+                                break;
+                                
+                            case 'sw': // Bottom-left corner
+                                const newWidthSW = Math.max(minSize, (selectedImage.x + selectedImage.width) - coords.x);
+                                selectedImage.x = coords.x;
+                                selectedImage.width = newWidthSW;
+                                selectedImage.height = Math.max(minSize, coords.y - selectedImage.y);
+                                break;
+                                
+                            case 'ne': // Top-right corner
+                                selectedImage.width = Math.max(minSize, coords.x - selectedImage.x);
+                                const newHeightNE = Math.max(minSize, (selectedImage.y + selectedImage.height) - coords.y);
+                                selectedImage.y = coords.y;
+                                selectedImage.height = newHeightNE;
+                                break;
+                                
+                            case 'nw': // Top-left corner
+                                const newWidthNW = Math.max(minSize, (selectedImage.x + selectedImage.width) - coords.x);
+                                const newHeightNW = Math.max(minSize, (selectedImage.y + selectedImage.height) - coords.y);
+                                selectedImage.x = coords.x;
+                                selectedImage.y = coords.y;
+                                selectedImage.width = newWidthNW;
+                                selectedImage.height = newHeightNW;
+                                break;
+                        }
+                        
+                        // Ensure image stays within canvas bounds
+                        if (selectedImage.x < 0) selectedImage.x = 0;
+                        if (selectedImage.y < 0) selectedImage.y = 0;
+                        if (selectedImage.x + selectedImage.width > canvas.width) {
+                            selectedImage.width = canvas.width - selectedImage.x;
+                        }
+                        if (selectedImage.y + selectedImage.height > canvas.height) {
+                            selectedImage.height = canvas.height - selectedImage.y;
+                        }
+                        
+                        drawCanvas();
+                        updateResizeHandles();
+                    }
+                });
+                
+                canvas.addEventListener('mouseup', function(e) {
+                    if (isResizing) {
+                        // Remove active class from all handles
+                        document.querySelectorAll('.resize-handle').forEach(handle => {
+                            handle.style.background = '#ff6b6b';
+                            handle.style.transform = 'scale(1)';
+                        });
+                        console.log('Resize completed');
+                    } else if (isDragging) {
+                        console.log('Drag completed');
+                    }
+                    isDragging = false;
+                    isResizing = false;
+                    resizeHandle = null;
+                    startResizeCoords = null;
+                });
+                
+                // Handle mouse leaving canvas during resize
+                canvas.addEventListener('mouseleave', function() {
+                    if (isResizing) {
+                        // Remove active class from all handles
+                        document.querySelectorAll('.resize-handle').forEach(handle => {
+                            handle.style.background = '#ff6b6b';
+                            handle.style.transform = 'scale(1)';
+                        });
+                        isResizing = false;
+                        resizeHandle = null;
+                        startResizeCoords = null;
+                    } else if (isDragging) {
+                        console.log('Mouse left canvas during drag');
+                        isDragging = false;
+                    }
+                });
+                
+                // Global mouse up listener to ensure resize ends properly
+                document.addEventListener('mouseup', function(e) {
+                    if (isResizing) {
+                        console.log('Global mouseup - ending resize');
+                        // Remove active class from all handles
+                        document.querySelectorAll('.resize-handle').forEach(handle => {
+                            handle.style.background = '#ff6b6b';
+                            handle.style.transform = 'scale(1)';
+                        });
+                        isResizing = false;
+                        resizeHandle = null;
+                        startResizeCoords = null;
+                    } else if (isDragging) {
+                        console.log('Global mouseup - ending drag');
+                        isDragging = false;
+                    }
+                });
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Delete' || e.key === 'Backspace') {
+                        deleteSelected();
+                    }
+                    // Escape key to cancel resize
+                    if (e.key === 'Escape' && isResizing) {
+                        isResizing = false;
+                        resizeHandle = null;
+                        startResizeCoords = null;
+                        document.querySelectorAll('.resize-handle').forEach(handle => {
+                            handle.style.background = '#ff6b6b';
+                            handle.style.transform = 'scale(1)';
+                        });
+                        drawCanvas();
+                        updateResizeHandles();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

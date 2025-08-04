@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Image Collage Maker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .form-section {
+            margin-bottom: 25px;
+        }
+        
+        .form-section h3 {
+            color: white;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .upload-area input[type="file"] {
+            width: 100%;
+            padding: 15px;
+            border-radius: 8px;
+            border: none;
+            background: white;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .option-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .option-card h4 {
+            color: white;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+        
+        .option-card select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            background: white;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .background-option {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 20px;
+        }
+        
+        .background-option h4 {
+            color: white;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+        
+        .background-option select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            background: white;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .create-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .create-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .result {
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .result h3 {
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        .result img {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        
+        .download-btn:hover {
+            background: #45a049;
+        }
+        
+        .error {
+            background: #f44336;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        @media (max-width: 600px) {
+            .options-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <a href="/" style="color: white; text-decoration: none; margin: 0 15px; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 8px; transition: background 0.3s;">🏠 Main App</a>
+            <a href="/simple_collage" style="color: white; text-decoration: none; margin: 0 15px; padding: 8px 16px; background: rgba(255,255,255,0.4); border-radius: 8px; transition: background 0.3s;">📱 Simple Collage</a>
+            <a href="/editor" style="color: white; text-decoration: none; margin: 0 15px; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 8px; transition: background 0.3s;">🎨 Advanced Editor</a>
+        </div>
+        <h1>📱 Instagram Reels Collage Maker</h1>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <a href="/editor" style="display: inline-block; padding: 12px 24px; background: linear-gradient(90deg, #4CAF50 0%, #45a049 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 0 10px;">🎨 Advanced Editor</a>
+        </div>
+        
+        {% if error %}
+        <div class="error">
+            {{ error }}
+        </div>
+        {% endif %}
+        
+        <form method="POST" enctype="multipart/form-data">
+            <div class="form-section">
+                <h3>📸 Upload Images</h3>
+                <div class="upload-area">
+                    <input type="file" name="collage_images" accept="image/*" multiple required>
+                    <p style="color: white; margin-top: 10px; opacity: 0.8;">Select 2-4 images for Instagram Reels collage</p>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h3>🎨 Collage Options</h3>
+                <div class="options-grid">
+                    <div class="option-card">
+                        <h4>📐 Layout</h4>
+                        <select name="collage_layout">
+                            <option value="horizontal">Horizontal (2-4 images side by side)</option>
+                            <option value="vertical">Vertical (2-4 images stacked)</option>
+                            <option value="triptych">Triptych (3 images in equal parts)</option>
+                            <option value="grid_2x2">Grid 2x2 (4 images)</option>
+                        </select>
+                    </div>
+                    <div class="option-card">
+                        <h4>📏 Size</h4>
+                        <select name="collage_aspect_ratio">
+                            <option value="9:16" selected>Instagram Reels (9:16)</option>
+                            <option value="1:1">Square (Instagram Post)</option>
+                            <option value="4:5">Portrait (Instagram Story)</option>
+                            <option value="16:9">Landscape (YouTube Thumbnail)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="background-option">
+                    <h4>🎨 Background Color</h4>
+                    <select name="background_color">
+                        <option value="#ffffff">White</option>
+                        <option value="#000000">Black</option>
+                        <option value="#f0f0f0">Light Gray</option>
+                        <option value="#e8f4fd">Light Blue</option>
+                        <option value="#fff5f5">Light Pink</option>
+                    </select>
+                </div>
+            </div>
+            
+            <button type="submit" class="create-btn">Create Collage</button>
+        </form>
+        
+        {% if collage_result %}
+        <div class="result">
+            <h3>🎉 Your Collage is Ready!</h3>
+            <img src="{{ url_for('download_clip', filename=collage_result) }}" alt="Collage">
+            <br>
+            <a href="{{ url_for('download_clip', filename=collage_result) }}" class="download-btn" download>Download Collage</a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html> 

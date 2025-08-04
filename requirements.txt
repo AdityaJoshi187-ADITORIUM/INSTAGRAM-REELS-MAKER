@@ -1,0 +1,7 @@
+Flask==3.0.0
+moviepy==1.0.3
+scenedetect[opencv]==0.6.3
+
+Pillow
+numpy
+opencv-python

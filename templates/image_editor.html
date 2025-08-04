@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag & Drop Image Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .editor-section {
+            margin-bottom: 25px;
+        }
+        
+        .editor-section h3 {
+            color: white;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .upload-area input[type="file"] {
+            width: 100%;
+            padding: 15px;
+            border-radius: 8px;
+            border: none;
+            background: white;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .editor-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .image-panel {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .canvas-panel {
+            flex: 2;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .image-item {
+            display: inline-block;
+            margin: 10px;
+            cursor: grab;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+        
+        .image-item:hover {
+            border-color: #ff6b6b;
+        }
+        
+        .image-item img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+        
+        .image-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        
+        #canvas {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            background: white;
+            max-width: 100%;
+            height: auto;
+            cursor: crosshair;
+        }
+        
+        .canvas-container {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .resize-handle {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #ff6b6b;
+            border: 3px solid white;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            transition: transform 0.1s ease;
+            pointer-events: auto;
+        }
+        
+        .resize-handle:hover {
+            transform: scale(1.2);
+            background: #ff5252;
+        }
+        
+        .resize-handle.active {
+            background: #ff0000;
+            transform: scale(1.3);
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+        }
+        
+        .canvas-container.resizing {
+            cursor: crosshair;
+        }
+        
+        .resize-handle.nw { cursor: nw-resize; }
+        .resize-handle.ne { cursor: ne-resize; }
+        .resize-handle.sw { cursor: sw-resize; }
+        .resize-handle.se { cursor: se-resize; }
+        
+        .image-controls {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            display: none;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .result {
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .result h3 {
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        .result img {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        
+        .download-btn:hover {
+            background: #45a049;
+        }
+        
+        .canvas-info {
+            color: white;
+            margin-top: 10px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <a href="/" style="color: white; text-decoration: none; margin: 0 15px; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 8px; transition: background 0.3s;">🏠 Main App</a>
+            <a href="/simple_collage" style="color: white; text-decoration: none; margin: 0 15px; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 8px; transition: background 0.3s;">📱 Simple Collage</a>
+            <a href="/editor" style="color: white; text-decoration: none; margin: 0 15px; padding: 8px 16px; background: rgba(255,255,255,0.4); border-radius: 8px; transition: background 0.3s;">🎨 Advanced Editor</a>
+        </div>
+        <h1>🎨 Drag & Drop Image Editor</h1>
+        
+        <div class="editor-section">
+            <h3>📸 Upload Images</h3>
+            <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                <div class="upload-area">
+                    <input type="file" name="editor_images" accept="image/*" multiple required>
+                    <p style="color: white; margin-top: 10px; opacity: 0.8;">Select images to add to your collage</p>
+                </div>
+                <button type="submit" class="btn btn-primary">Upload Images</button>
+            </form>
+        </div>
+        
+        {% if uploaded_images %}
+        <div class="editor-container">
+            <div class="image-panel">
+                <h3>🖼️ Available Images</h3>
+                <p style="color: white; margin-bottom: 15px; opacity: 0.8;">Drag images to the canvas</p>
+                {% for image in uploaded_images %}
+                <div class="image-item" draggable="true" data-src="{{ url_for('serve_image', filename=image.filename) }}">
+                    <img src="{{ url_for('serve_image', filename=image.filename) }}" alt="Image">
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="canvas-panel">
+                <h3>🎨 Canvas</h3>
+                <div class="canvas-container">
+                    <canvas id="canvas" width="1080" height="1920"></canvas>
+                    <div id="resizeHandles" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></div>
+                </div>
+                <div class="canvas-info">
+                    Canvas size: 1080x1920 (Instagram Reels format)
+                </div>
+                <div class="controls">
+                    <button class="btn btn-secondary" onclick="clearCanvas()">Clear Canvas</button>
+                    <button class="btn btn-primary" onclick="saveCollage()">Save Collage</button>
+                    <button class="btn btn-secondary" onclick="deleteSelected()">Delete Selected</button>
+                    <button class="btn btn-secondary" onclick="bringToFront()">Bring to Front</button>
+                    <button class="btn btn-secondary" onclick="sendToBack()">Send to Back</button>
+                </div>
+                                 <div style="color: white; margin-top: 10px; font-size: 12px; opacity: 0.8;">
+                     <p>💡 Tips:</p>
+                     <ul style="text-align: left; margin: 10px 0;">
+                         <li>Click on an image to select it (red border appears)</li>
+                         <li>Drag the red circular handles to resize from corners</li>
+                         <li>Drag anywhere on the image to move it</li>
+                         <li>Press Delete to remove selected image</li>
+                         <li>Use Bring to Front/Send to Back to layer images</li>
+                         <li>Images automatically stay within canvas bounds</li>
+                     </ul>
+                 </div>
+            </div>
+        </div>
+        
+        <form id="saveForm" method="POST" style="display: none;">
+            <input type="hidden" name="save_collage" value="1">
+            <input type="hidden" name="canvas_data" id="canvasData">
+        </form>
+        {% endif %}
+        
+        {% if collage_result %}
+        <div class="result">
+            <h3>🎉 Your Custom Collage is Ready!</h3>
+            <img src="{{ url_for('download_clip', filename=collage_result) }}" alt="Custom Collage">
+            <br>
+            <a href="{{ url_for('download_clip', filename=collage_result) }}" class="download-btn" download>Download Collage</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let draggedImages = [];
+        let selectedImage = null;
+        let isDragging = false;
+        let isResizing = false;
+        let dragOffset = { x: 0, y: 0 };
+        let resizeHandle = null;
+        let canvasScale = 1;
+        let startResizeCoords = null;
+
+        // Initialize canvas
+        function initCanvas() {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Clear canvas
+        function clearCanvas() {
+            draggedImages = [];
+            selectedImage = null;
+            initCanvas();
+            updateResizeHandles();
+        }
+
+        // Delete selected image
+        function deleteSelected() {
+            if (selectedImage) {
+                const index = draggedImages.indexOf(selectedImage);
+                if (index > -1) {
+                    draggedImages.splice(index, 1);
+                    selectedImage = null;
+                    drawCanvas();
+                    updateResizeHandles();
+                }
+            }
+        }
+
+        // Bring selected image to front
+        function bringToFront() {
+            if (selectedImage) {
+                const index = draggedImages.indexOf(selectedImage);
+                if (index > -1 && index < draggedImages.length - 1) {
+                    draggedImages.splice(index, 1);
+                    draggedImages.push(selectedImage);
+                    drawCanvas();
+                    updateResizeHandles();
+                }
+            }
+        }
+
+        // Send selected image to back
+        function sendToBack() {
+            if (selectedImage) {
+                const index = draggedImages.indexOf(selectedImage);
+                if (index > 0) {
+                    draggedImages.splice(index, 1);
+                    draggedImages.unshift(selectedImage);
+                    drawCanvas();
+                    updateResizeHandles();
+                }
+            }
+        }
+
+        // Draw all images on canvas
+        function drawCanvas() {
+            initCanvas();
+            draggedImages.forEach(img => {
+                ctx.drawImage(img.element, img.x, img.y, img.width, img.height);
+                
+                // Draw selection border for selected image
+                if (img === selectedImage) {
+                    ctx.strokeStyle = '#ff6b6b';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(img.x - 3, img.y - 3, img.width + 6, img.height + 6);
+                    
+                    // Draw corner indicators
+                    const corners = [
+                        { x: img.x, y: img.y },
+                        { x: img.x + img.width, y: img.y },
+                        { x: img.x, y: img.y + img.height },
+                        { x: img.x + img.width, y: img.y + img.height }
+                    ];
+                    
+                    ctx.fillStyle = '#ff6b6b';
+                    corners.forEach(corner => {
+                        ctx.beginPath();
+                        ctx.arc(corner.x, corner.y, 4, 0, 2 * Math.PI);
+                        ctx.fill();
+                    });
+                }
+            });
+        }
+
+        // Update resize handles
+        function updateResizeHandles() {
+            const handlesContainer = document.getElementById('resizeHandles');
+            handlesContainer.innerHTML = '';
+            
+            if (selectedImage) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = rect.width / canvas.width;
+                const scaleY = rect.height / canvas.height;
+                
+                // Calculate handle positions in display coordinates
+                const handles = [
+                    { class: 'nw', x: selectedImage.x * scaleX, y: selectedImage.y * scaleY },
+                    { class: 'ne', x: (selectedImage.x + selectedImage.width) * scaleX, y: selectedImage.y * scaleY },
+                    { class: 'sw', x: selectedImage.x * scaleX, y: (selectedImage.y + selectedImage.height) * scaleY },
+                    { class: 'se', x: (selectedImage.x + selectedImage.width) * scaleX, y: (selectedImage.y + selectedImage.height) * scaleY }
+                ];
+                
+                handles.forEach(handle => {
+                    const handleEl = document.createElement('div');
+                    handleEl.className = `resize-handle ${handle.class}`;
+                    handleEl.style.left = `${handle.x - 8}px`;
+                    handleEl.style.top = `${handle.y - 8}px`;
+                    handleEl.style.pointerEvents = 'auto';
+                    handleEl.dataset.handle = handle.class;
+                    
+                    // Add direct event listeners to handles
+                    handleEl.addEventListener('mousedown', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        isResizing = true;
+                        resizeHandle = this.dataset.handle;
+                        const coords = getCanvasCoords(e.clientX, e.clientY);
+                        startResizeCoords = { x: coords.x, y: coords.y };
+                        this.classList.add('active');
+                        document.querySelector('.canvas-container').classList.add('resizing');
+                        console.log('Resize started:', resizeHandle);
+                        
+                        // Prevent any other mouse events from interfering
+                        setTimeout(() => {
+                            if (isResizing) {
+                                console.log('Resize confirmed after delay');
+                            }
+                        }, 50);
+                    });
+                    
+                    handlesContainer.appendChild(handleEl);
+                });
+            }
+        }
+
+        // Get canvas coordinates from mouse coordinates
+        function getCanvasCoords(mouseX, mouseY) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (mouseX - rect.left) * scaleX,
+                y: (mouseY - rect.top) * scaleY
+            };
+        }
+
+        // Handle image drag start
+        document.addEventListener('DOMContentLoaded', function() {
+            initCanvas();
+            
+            const imageItems = document.querySelectorAll('.image-item');
+            
+            imageItems.forEach(item => {
+                item.addEventListener('dragstart', function(e) {
+                    this.classList.add('dragging');
+                    const imgSrc = this.getAttribute('data-src');
+                    e.dataTransfer.setData('text/plain', imgSrc);
+                });
+                
+                item.addEventListener('dragend', function() {
+                    this.classList.remove('dragging');
+                });
+            });
+            
+            // Handle canvas drop
+            canvas.addEventListener('dragover', function(e) {
+                e.preventDefault();
+            });
+            
+            canvas.addEventListener('drop', function(e) {
+                e.preventDefault();
+                const imgSrc = e.dataTransfer.getData('text/plain');
+                
+                const img = new Image();
+                img.onload = function() {
+                    const coords = getCanvasCoords(e.clientX, e.clientY);
+                    
+                    // Scale image to fit canvas better
+                    const maxWidth = 300;
+                    const maxHeight = 400;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > maxWidth) {
+                        height = (height * maxWidth) / width;
+                        width = maxWidth;
+                    }
+                    if (height > maxHeight) {
+                        width = (width * maxHeight) / height;
+                        height = maxHeight;
+                    }
+                    
+                    const newImage = {
+                        element: img,
+                        x: coords.x - width/2,
+                        y: coords.y - height/2,
+                        width: width,
+                        height: height
+                    };
+                    
+                    draggedImages.push(newImage);
+                    selectedImage = newImage;
+                    drawCanvas();
+                    updateResizeHandles();
+                };
+                img.src = imgSrc;
+            });
+            
+            // Handle canvas mouse events
+            canvas.addEventListener('mousedown', function(e) {
+                const coords = getCanvasCoords(e.clientX, e.clientY);
+                
+                // Check if clicking on resize handle
+                const handle = e.target.closest('.resize-handle');
+                if (handle) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    isResizing = true;
+                    resizeHandle = handle.dataset.handle;
+                    startResizeCoords = { x: coords.x, y: coords.y };
+                    handle.classList.add('active');
+                    document.querySelector('.canvas-container').classList.add('resizing');
+                    console.log('Resize started from canvas:', resizeHandle);
+                    return;
+                }
+                
+                // Check if clicking on an image
+                for (let i = draggedImages.length - 1; i >= 0; i--) {
+                    const img = draggedImages[i];
+                    if (coords.x >= img.x && coords.x <= img.x + img.width &&
+                        coords.y >= img.y && coords.y <= img.y + img.height) {
+                        selectedImage = img;
+                        isDragging = true;
+                        dragOffset.x = coords.x - img.x;
+                        dragOffset.y = coords.y - img.y;
+                        updateResizeHandles();
+                        console.log('Drag started on image');
+                        break;
+                    } else {
+                        if (selectedImage === img) {
+                            selectedImage = null;
+                            updateResizeHandles();
+                        }
+                    }
+                }
+            });
+            
+            canvas.addEventListener('mousemove', function(e) {
+                const coords = getCanvasCoords(e.clientX, e.clientY);
+                
+                if (isDragging && selectedImage) {
+                    // Ensure image stays within canvas bounds during drag
+                    let newX = coords.x - dragOffset.x;
+                    let newY = coords.y - dragOffset.y;
+                    
+                    // Keep image within canvas bounds
+                    if (newX < 0) newX = 0;
+                    if (newY < 0) newY = 0;
+                    if (newX + selectedImage.width > canvas.width) {
+                        newX = canvas.width - selectedImage.width;
+                    }
+                    if (newY + selectedImage.height > canvas.height) {
+                        newY = canvas.height - selectedImage.height;
+                    }
+                    
+                    selectedImage.x = newX;
+                    selectedImage.y = newY;
+                    drawCanvas();
+                    updateResizeHandles();
+                } else if (isResizing && selectedImage && resizeHandle) {
+                    console.log('Resizing:', resizeHandle, coords);
+                    const minSize = 50;
+                    
+                    switch (resizeHandle) {
+                        case 'se': // Bottom-right corner
+                            selectedImage.width = Math.max(minSize, coords.x - selectedImage.x);
+                            selectedImage.height = Math.max(minSize, coords.y - selectedImage.y);
+                            break;
+                            
+                        case 'sw': // Bottom-left corner
+                            const newWidthSW = Math.max(minSize, (selectedImage.x + selectedImage.width) - coords.x);
+                            selectedImage.x = coords.x;
+                            selectedImage.width = newWidthSW;
+                            selectedImage.height = Math.max(minSize, coords.y - selectedImage.y);
+                            break;
+                            
+                        case 'ne': // Top-right corner
+                            selectedImage.width = Math.max(minSize, coords.x - selectedImage.x);
+                            const newHeightNE = Math.max(minSize, (selectedImage.y + selectedImage.height) - coords.y);
+                            selectedImage.y = coords.y;
+                            selectedImage.height = newHeightNE;
+                            break;
+                            
+                        case 'nw': // Top-left corner
+                            const newWidthNW = Math.max(minSize, (selectedImage.x + selectedImage.width) - coords.x);
+                            const newHeightNW = Math.max(minSize, (selectedImage.y + selectedImage.height) - coords.y);
+                            selectedImage.x = coords.x;
+                            selectedImage.y = coords.y;
+                            selectedImage.width = newWidthNW;
+                            selectedImage.height = newHeightNW;
+                            break;
+                    }
+                    
+                    // Ensure image stays within canvas bounds
+                    if (selectedImage.x < 0) selectedImage.x = 0;
+                    if (selectedImage.y < 0) selectedImage.y = 0;
+                    if (selectedImage.x + selectedImage.width > canvas.width) {
+                        selectedImage.width = canvas.width - selectedImage.x;
+                    }
+                    if (selectedImage.y + selectedImage.height > canvas.height) {
+                        selectedImage.height = canvas.height - selectedImage.y;
+                    }
+                    
+                    drawCanvas();
+                    updateResizeHandles();
+                }
+            });
+            
+            canvas.addEventListener('mouseup', function(e) {
+                if (isResizing) {
+                    // Remove active class from all handles
+                    document.querySelectorAll('.resize-handle').forEach(handle => {
+                        handle.classList.remove('active');
+                    });
+                    document.querySelector('.canvas-container').classList.remove('resizing');
+                    console.log('Resize completed');
+                } else if (isDragging) {
+                    console.log('Drag completed');
+                }
+                isDragging = false;
+                isResizing = false;
+                resizeHandle = null;
+                startResizeCoords = null;
+            });
+            
+            // Handle mouse leaving canvas during resize
+            canvas.addEventListener('mouseleave', function() {
+                if (isResizing) {
+                    // Remove active class from all handles
+                    document.querySelectorAll('.resize-handle').forEach(handle => {
+                        handle.classList.remove('active');
+                    });
+                    document.querySelector('.canvas-container').classList.remove('resizing');
+                    isResizing = false;
+                    resizeHandle = null;
+                    startResizeCoords = null;
+                } else if (isDragging) {
+                    console.log('Mouse left canvas during drag');
+                    isDragging = false;
+                }
+            });
+            
+            // Global mouse up listener to ensure resize ends properly
+            document.addEventListener('mouseup', function(e) {
+                if (isResizing) {
+                    console.log('Global mouseup - ending resize');
+                    // Remove active class from all handles
+                    document.querySelectorAll('.resize-handle').forEach(handle => {
+                        handle.classList.remove('active');
+                    });
+                    document.querySelector('.canvas-container').classList.remove('resizing');
+                    isResizing = false;
+                    resizeHandle = null;
+                    startResizeCoords = null;
+                } else if (isDragging) {
+                    console.log('Global mouseup - ending drag');
+                    isDragging = false;
+                }
+            });
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    deleteSelected();
+                }
+                // Escape key to cancel resize
+                if (e.key === 'Escape' && isResizing) {
+                    isResizing = false;
+                    resizeHandle = null;
+                    startResizeCoords = null;
+                    document.querySelectorAll('.resize-handle').forEach(handle => {
+                        handle.classList.remove('active');
+                    });
+                    document.querySelector('.canvas-container').classList.remove('resizing');
+                    drawCanvas();
+                    updateResizeHandles();
+                }
+            });
+        });
+
+        // Save collage
+        function saveCollage() {
+            const canvasData = canvas.toDataURL('image/png');
+            document.getElementById('canvasData').value = canvasData;
+            document.getElementById('saveForm').submit();
+        }
+    </script>
+</body>
+</html> 
